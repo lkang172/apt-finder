@@ -19,9 +19,9 @@ def test_summarizes_complaints_and_praise_with_counts():
         review(5, "Super quiet and peaceful.", rating=5.0, years_ago=3),
     ]
     result = summarize_comments(reviews, 8, NOW)
-    assert result.text.startswith("From the 5 Google review texts returned (of 8 Google ratings), dated 2023–2025, averaging 2.6★.")
+    assert result.text.startswith("Sample only: the 5 of 8 Google reviews that Google's API shares (chosen by Google, not the full set), dated 2023–2025, averaging 2.6★.")
     assert "cockroach" in result.text.lower()
-    assert "Complaints:" in result.text and "Praise:" in result.text
+    assert "In these 5, complaints:" in result.text and "Praise:" in result.text
     assert result.reviews_used == 5 and len(result.evidence_ids) == 5
     assert "not AI-generated" in result.method
 
@@ -41,3 +41,9 @@ def test_old_reviews_are_flagged_and_ai_summaries_ignored():
 def test_no_topics_found_is_stated_plainly():
     result = summarize_comments([review(1, "We moved in last spring.", rating=4.0)], 1, NOW)
     assert "no specific topics" in result.text
+
+
+def test_complete_set_is_not_called_a_sample():
+    result = summarize_comments([review(1, "Roaches in the kitchen."), review(2, "Very noisy.")], 2, NOW)
+    assert result.text.startswith("All 2 Google reviews with text")
+    assert "Sample only" not in result.text

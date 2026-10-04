@@ -31,6 +31,7 @@ Useful variants:
 ```bash
 uv run python -m aptfinder run --cities Sunnyvale,Mountain\ View   # subset of cities
 uv run python -m aptfinder run --sources apartment_list,redfin     # also try Redfin (opt-in)
+uv run python -m aptfinder run --sources apartment_list,trulia --cities Sunnyvale   # also try Trulia (opt-in)
 uv run python -m aptfinder run --skip-collection                   # re-filter and re-evaluate stored evidence
 ```
 
@@ -40,8 +41,10 @@ You can also start a refresh from the UI ("Refresh data"), which calls `POST /ap
 
 Google Maps is the most complete review source for these properties. With a key, every listing that
 passes the price, location, and eligibility filters is matched to its Google Maps place (by name,
-address, and a ≤150 m location check), and the app stores the star rating, total review count, Google's
-AI summary of all reviews ("Summarized with Gemini"), and up to 5 review texts. A Google average below
+address, and a location check), and the app stores the star rating, total review count, Google's
+AI summary of all reviews ("Summarized with Gemini") when Google provides one (it does for only some
+places), and up to 5 review texts. The star rating covers every Google rating; the 5 texts are a sample
+Google picks, so the keyword summary built from them is labeled "Sample only". A Google average below
 3.0 across 3+ reviews excludes the property like any other low rating.
 
 1. In the [Google Cloud console](https://console.cloud.google.com/), create a project and attach a
@@ -112,6 +115,7 @@ collectors never score, and React components never fetch third-party sites.
 | --- | --- | --- |
 | [Apartment List](https://www.apartmentlist.com) | Listings, unit-level base and total prices, required monthly fees, fee text, specials, amenities, pet/parking/lease facts, official website links, verified resident reviews with sub-ratings | Public pages allowed by robots.txt; requests are throttled (≥4 s apart) and cached for 12 h |
 | [Redfin Rentals](https://www.redfin.com) | Second listing source for cross-checking prices; unit-level base rent, sqft, availability | Public pages allowed by robots.txt (its APIs are disallowed and never called directly); ≥8 s between requests. In testing, Redfin began answering with an AWS WAF JavaScript challenge after a few dozen requests, so the collector stops at the first challenge and the run records the limitation. Expect little or no Redfin data until access recovers |
+| [Trulia Rentals](https://www.trulia.com) (opt-in) | Listings and unit-level base rent from the Zillow Group rental feed; total-price-only listings are stored as totals and never qualify on their own | Public pages allowed by robots.txt (enforced by the collector's own RFC 9309 parser); ≥15 s between requests, up to 3 search pages per city. In testing, Trulia answered HTTP 403 after about a dozen requests, so the collector stops at the first block; run it for one or two cities at a time |
 | [OSRM](https://project-osrm.org) public server | Driving distance and free-flow driving time to the office | ≤1 request/second policy; batched table requests, cached 7 days |
 | [U.S. Census Geocoder](https://geocoding.geo.census.gov) | Address → coordinates when a listing lacks them, and the office location | Free, no key |
 | [California DOJ OpenJustice](https://openjustice.doj.ca.gov) | City-level reported violent and property crime counts (annual) | Public CSV |
@@ -238,8 +242,9 @@ open a documented Google Maps directions URL and are not presented as evidence.
   limiting); 67 passed every hard filter. Only 10 review texts exist across those 67, so most properties are
   scored on commute and city-level safety alone, at low overall confidence — the UI says so on every card.
 - **Google review texts are capped at 5 per property.** The rating and count cover every Google review,
-  and Google's AI summary describes all of them, but category scores can only cite the 5 texts Google
-  returns plus that summary. The summary is treated as derived evidence (it counts as one item, and it
+  and Google's AI summary (available for only some places) describes all of them, but category scores
+  can only cite the 5 texts Google returns plus that summary. Without a Google summary, topic findings
+  come from a 5-review sample Google picks, and the page labels them "Sample only". The summary is treated as derived evidence (it counts as one item, and it
   is always shown with Google's "Summarized with Gemini" label).
 - **Thin review coverage.** Without API keys, the only reachable review source is Apartment List's
   verified reviews, which are sparse (often zero to a few per property, and some come from people who
@@ -251,8 +256,8 @@ open a documented Google Maps directions URL and are not presented as evidence.
 - **Redfin is challenge-gated.** Its bot protection (AWS WAF) started challenging plain requests mid-run.
   Solving that challenge would mean circumventing anti-bot measures, so Redfin is effectively a
   best-effort source and cross-source price conflicts will be rare until another listing source is added.
-- **Coverage** is limited to what Apartment List and Redfin list; major sites that block automated
-  access are not searched.
+- **Coverage** is limited to what Apartment List, Redfin, and Trulia list; major sites that block automated
+  access are not searched. Trulia blocks quickly, so it is opt-in.
 - **Site changes.** Collectors parse embedded page data; a site redesign can break a collector. Runs
   record such failures as limitations instead of guessing.
 

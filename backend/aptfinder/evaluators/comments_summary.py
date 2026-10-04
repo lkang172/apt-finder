@@ -8,8 +8,8 @@ from aptfinder.evaluators.classifier import classify_reviews
 from aptfinder.evaluators.intelligence import theme_label
 
 METHOD = (
-    "Keyword-based summary written by Apt Finder from the review texts Google returned "
-    "(not AI-generated; Google's API returns at most 5 review texts per place)."
+    "Keyword-based summary written by Apt Finder (not AI-generated). Google's API shares at most 5 review texts "
+    "per place, so topics reflect only that sample; the star rating covers every Google rating."
 )
 MAX_THEMES = 6
 OLD_AFTER = timedelta(days=730)
@@ -40,9 +40,11 @@ def summarize_comments(reviews: Sequence[ReviewEvidence], total_count: int | Non
             praise[mention.theme] += 1
 
     shown = len(texted)
-    head = f"From the {shown} Google review {'text' if shown == 1 else 'texts'} returned"
+    noun = "review" if shown == 1 else "reviews"
     if total_count and total_count > shown:
-        head += f" (of {total_count} Google ratings)"
+        head = f"Sample only: the {shown} of {total_count} Google {noun} that Google's API shares (chosen by Google, not the full set)"
+    else:
+        head = f"All {shown} Google {noun} with text"
     years = sorted(r.review_date.year for r in texted if r.review_date)
     if years:
         head += f", dated {years[0]}" if years[0] == years[-1] else f", dated {years[0]}–{years[-1]}"
@@ -51,11 +53,12 @@ def summarize_comments(reviews: Sequence[ReviewEvidence], total_count: int | Non
         head += f", averaging {sum(ratings) / len(ratings):.1f}★"
 
     sentences = [head + "."]
+    scope = "this review" if shown == 1 else f"these {shown}"
     if complaints or praise:
-        sentences.append(f"Complaints: {_phrase(complaints) or 'none identified'}.")
+        sentences.append(f"In {scope}, complaints: {_phrase(complaints) or 'none identified'}.")
         sentences.append(f"Praise: {_phrase(praise) or 'none identified'}.")
     else:
-        sentences.append("Keyword analysis found no specific topics in these reviews.")
+        sentences.append(f"Keyword analysis found no specific topics in {scope}.")
     if all(r.review_date and now - r.review_date > OLD_AFTER for r in texted):
         sentences.append("All of these reviews are more than 2 years old.")
     return CommentsSummary(" ".join(sentences), METHOD, shown, [r.evidence_id for r in texted])
