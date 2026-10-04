@@ -10,8 +10,7 @@ import { ConfidenceBadge } from "@/components/ui/ConfidenceBadge";
 import { IconCar, IconPin, IconStar } from "@/components/ui/icons";
 import { ScoreValue } from "@/components/ui/ScoreValue";
 import { Timestamp } from "@/components/ui/Timestamp";
-import type { SortKey } from "@/lib/browse";
-import { SCORE_FILTER_CATEGORIES } from "@/lib/browse";
+import { rentsInRange, SCORE_FILTER_CATEGORIES, type RentRange, type SortKey } from "@/lib/browse";
 import {
   formatMiles,
   formatMinutes,
@@ -36,10 +35,11 @@ interface PropertyCardProps {
   highlighted: boolean;
   sortKey: SortKey;
   sourceNames: SourceNames;
+  baseRent: RentRange | null;
   onHoverChange: (id: number | null) => void;
 }
 
-export function PropertyCard({ property: p, highlighted, sortKey, sourceNames, onHoverChange }: PropertyCardProps) {
+export function PropertyCard({ property: p, highlighted, sortKey, sourceNames, baseRent, onHoverChange }: PropertyCardProps) {
   const sortedCategory = SCORE_FILTER_CATEGORIES.find((category) => category === sortKey);
   const titleId = `property-${p.id}-title`;
 
@@ -92,7 +92,7 @@ export function PropertyCard({ property: p, highlighted, sortKey, sourceNames, o
           <span className="text-sm text-ink-muted">{formatSqftRange(p.sqft_min, p.sqft_max) ?? "Sq ft not published"}</span>
         </div>
 
-        <PriceBlock property={p} />
+        <PriceBlock property={p} baseRent={baseRent} />
 
         <div className="space-y-2 rounded-xl border border-line px-3 py-2.5">
           <GoogleRatingLine google={p.google} linkClassName="relative z-10" />
@@ -133,8 +133,9 @@ function scoreText(score: number | null): string {
   return score === null ? NA_TEXT : `${formatScore(score)}/10`;
 }
 
-function PriceBlock({ property: p }: { property: PropertySummary }) {
+function PriceBlock({ property: p, baseRent: range }: { property: PropertySummary; baseRent: RentRange | null }) {
   const baseRent = formatMoneyRange(p.rent_min, p.rent_max);
+  const matching = range ? rentsInRange(p, range) : [];
   return (
     <div className="rounded-xl bg-surface-muted px-3 py-2.5">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Est. monthly total</p>
@@ -153,6 +154,12 @@ function PriceBlock({ property: p }: { property: PropertySummary }) {
       <p className="mt-0.5 text-sm text-ink-muted">
         Base rent <span className="font-medium text-ink tabular-nums">{baseRent ?? "not published"}</span>
       </p>
+      {matching.length > 0 && (
+        <p className="text-xs font-medium text-accent">
+          In your range: {matching.slice(0, 3).map(formatMoney).join(", ")}
+          {matching.length > 3 && ` +${matching.length - 3} more`}
+        </p>
+      )}
     </div>
   );
 }

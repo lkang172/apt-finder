@@ -39,6 +39,7 @@ export default async function BrowsePage() {
           total={list.data.total}
           cities={list.data.cities}
           office={office}
+          search={search ?? null}
           sourceNames={sourceNames}
         />
       )}

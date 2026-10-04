@@ -60,6 +60,9 @@ If the backend isn't reachable, pages show an error state asking you to start it
   green 4.0+) and Google's review summary with its disclosure label. When Google data is unavailable, the card shows
   `google.explanation` instead — never “No reviews”. Uncertain matches are flagged “Matched by address/location —
   verify this is the right place”.
+- The base-rent range filter (dual-handle slider in $50 steps plus clamped inputs) is bounded by `/api/meta`
+  `search.min_rent`/`max_rent` and is unit-accurate: a property matches only if a value in `qualifying_rents` falls
+  inside the range, never because its overall min–max range overlaps.
 - The “Rating” sort and the minimum-rating filter use the Google rating when available and fall back to the other
   sources' average; a separate “Google rating” sort uses Google only.
 
@@ -97,6 +100,7 @@ The fixtures cover: no reviews, price conflicts, stale prices, promotions with e
 required fees, null coordinates, null source URLs, all-N/A scores, conflicting ratings, older evidence, eligibility
 restrictions, an evidence ID that has to be fetched from `/api/evidence/{id}`, and Google review states (low and high
 ratings, a Google AI summary used as evidence, probable and weak matches, not configured, not checked, no match).
+Sample Property A has qualifying rents of $2,650 and $2,950, so a $2,700–$2,900 base-rent range must exclude it.
 
 Options: `MOCK_API_PORT` (default `8010`) and `MOCK_SCENARIO=empty` (no properties, to see the empty state).
 

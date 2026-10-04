@@ -68,6 +68,7 @@ export interface PropertySummary {
   unit_types: UnitType[];
   rent_min: number | null;
   rent_max: number | null;
+  qualifying_rents: number[];
   est_monthly_total_min: number | null;
   has_unknown_required_costs: boolean;
   has_promotion: boolean;

@@ -1,21 +1,23 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
-import { IconGrid, IconMap, IconSearch, IconSliders, IconSort } from "@/components/ui/icons";
+import { useId, useState, type ReactNode } from "react";
+import { IconChevronDown, IconGrid, IconMap, IconSearch, IconSliders, IconSort } from "@/components/ui/icons";
 import {
+  monthlyTotalOptions,
   SCORE_FILTER_CATEGORIES,
   SORT_OPTIONS,
   type BrowseFilters,
+  type RentRange,
   type SortDirection,
   type SortKey,
 } from "@/lib/browse";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatMoneyRange } from "@/lib/format";
 import { CATEGORY_LABEL, CONFIDENCE_LABEL, UNIT_TYPE_LABEL } from "@/lib/presentation";
 import type { Confidence, UnitType } from "@/lib/types";
+import { RentRangeFilter } from "./RentRangeFilter";
 
 export type ViewMode = "grid" | "map";
 
-const MAX_TOTAL_OPTIONS = [2600, 2700, 2800, 2900, 3000, 3100, 3200, 3400, 3600];
 const MAX_COMMUTE_OPTIONS = [10, 15, 20, 25, 30, 40];
 const MIN_SCORE_OPTIONS = [5, 6, 7, 8, 9];
 const MIN_RATING_OPTIONS = [3, 3.5, 4, 4.5];
@@ -29,11 +31,10 @@ interface FilterBarProps {
   filters: BrowseFilters;
   onFiltersChange: (filters: BrowseFilters) => void;
   cities: string[];
+  rentBounds: RentRange | null;
   sortKey: SortKey;
   sortDirection: SortDirection;
   onSortChange: (key: SortKey, direction: SortDirection) => void;
-  view: ViewMode;
-  onViewChange: (view: ViewMode) => void;
   moreOpen: boolean;
   onMoreOpenChange: (open: boolean) => void;
   activeFilterCount: number;
@@ -44,11 +45,10 @@ export function FilterBar({
   filters,
   onFiltersChange,
   cities,
+  rentBounds,
   sortKey,
   sortDirection,
   onSortChange,
-  view,
-  onViewChange,
   moreOpen,
   onMoreOpenChange,
   activeFilterCount,
@@ -58,6 +58,8 @@ export function FilterBar({
   const cityId = useId();
   const sortId = useId();
   const panelId = useId();
+  const rentPanelId = useId();
+  const [rentOpen, setRentOpen] = useState(false);
   const update = (patch: Partial<BrowseFilters>) => onFiltersChange({ ...filters, ...patch });
 
   function toggleUnitType(type: UnitType) {
@@ -96,6 +98,21 @@ export function FilterBar({
             </option>
           ))}
         </select>
+
+        {rentBounds && (
+          <button
+            type="button"
+            aria-expanded={rentOpen}
+            aria-controls={rentPanelId}
+            onClick={() => setRentOpen(!rentOpen)}
+            className={`${CONTROL_CLASS} inline-flex min-w-56 items-center justify-between gap-1.5 font-medium tabular-nums ${
+              filters.baseRent ? "border-accent bg-accent-soft text-accent" : rentOpen ? "border-accent text-accent" : ""
+            }`}
+          >
+            {filters.baseRent ? `Base rent ${formatMoneyRange(filters.baseRent.min, filters.baseRent.max)}` : "Base rent: Any"}
+            <IconChevronDown className={`transition ${rentOpen ? "rotate-180" : ""}`} />
+          </button>
+        )}
 
         <div role="group" aria-label="Unit type" className="flex gap-1">
           {UNIT_TYPES.map((type) => {
@@ -163,18 +180,30 @@ export function FilterBar({
           </button>
         </div>
 
-        <div role="group" aria-label="View" className="flex rounded-xl border border-line-strong bg-surface p-0.5 shadow-sm">
-          <ViewButton active={view === "grid"} onClick={() => onViewChange("grid")} icon={<IconGrid />} label="Grid" />
-          <ViewButton active={view === "map"} onClick={() => onViewChange("map")} icon={<IconMap />} label="Map" />
-        </div>
       </div>
+
+      {rentBounds && (
+        <div id={rentPanelId} hidden={!rentOpen} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+          <RentRangeFilter bounds={rentBounds} value={filters.baseRent} onChange={(baseRent) => update({ baseRent })} />
+          <div className="mt-3 flex justify-end border-t border-line pt-3">
+            <button
+              type="button"
+              onClick={() => update({ baseRent: null })}
+              disabled={!filters.baseRent}
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              Reset base rent
+            </button>
+          </div>
+        </div>
+      )}
 
       <div id={panelId} hidden={!moreOpen} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <NumberSelect
             label="Max est. monthly total"
             value={filters.maxMonthlyTotal}
-            options={MAX_TOTAL_OPTIONS}
+            options={monthlyTotalOptions(rentBounds)}
             format={formatMoney}
             onChange={(maxMonthlyTotal) => update({ maxMonthlyTotal })}
           />
@@ -237,6 +266,15 @@ export function FilterBar({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function ViewToggle({ view, onViewChange }: { view: ViewMode; onViewChange: (view: ViewMode) => void }) {
+  return (
+    <div role="group" aria-label="View" className="flex rounded-xl border border-line-strong bg-surface p-0.5 shadow-sm">
+      <ViewButton active={view === "grid"} onClick={() => onViewChange("grid")} icon={<IconGrid />} label="Grid" />
+      <ViewButton active={view === "map"} onClick={() => onViewChange("map")} icon={<IconMap />} label="Map" />
     </div>
   );
 }

@@ -13,8 +13,14 @@ export const SCORE_FILTER_CATEGORIES: ScoreFilterCategory[] = [
   "neighborhood_safety",
 ];
 
+export interface RentRange {
+  min: number;
+  max: number;
+}
+
 export interface BrowseFilters {
   query: string;
+  baseRent: RentRange | null;
   city: string;
   unitTypes: UnitType[];
   maxMonthlyTotal: number | null;
@@ -28,6 +34,7 @@ export interface BrowseFilters {
 
 export const EMPTY_FILTERS: BrowseFilters = {
   query: "",
+  baseRent: null,
   city: "",
   unitTypes: [],
   maxMonthlyTotal: null,
@@ -121,10 +128,31 @@ function matchesQuery(property: PropertySummary, query: string): boolean {
   );
 }
 
+// The hard-filter rent bounds come from /api/meta; without it, fall back to the rents actually present.
+export function rentBoundsFor(search: { min_rent: number; max_rent: number } | null, items: PropertySummary[]): RentRange | null {
+  if (search) return { min: search.min_rent, max: search.max_rent };
+  const rents = items.flatMap((p) => p.qualifying_rents);
+  return rents.length > 0 ? { min: Math.min(...rents), max: Math.max(...rents) } : null;
+}
+
+// Unit-accurate: a property matches only if one of its qualifying units' base rents is inside the range.
+// Comparing rent_min/rent_max would wrongly match a property whose units straddle the range.
+export function rentsInRange(property: PropertySummary, range: RentRange): number[] {
+  return property.qualifying_rents.filter((rent) => rent >= range.min && rent <= range.max);
+}
+
+export function monthlyTotalOptions(bounds: RentRange | null): number[] {
+  if (!bounds) return [];
+  const first = Math.ceil((bounds.min + 100) / 100) * 100;
+  const last = bounds.max + 600;
+  return Array.from({ length: Math.floor((last - first) / 100) + 1 }, (_, index) => first + index * 100);
+}
+
 export function filterProperties(items: PropertySummary[], filters: BrowseFilters): PropertySummary[] {
   return items.filter(
     (p) =>
       matchesQuery(p, filters.query) &&
+      (filters.baseRent === null || rentsInRange(p, filters.baseRent).length > 0) &&
       (!filters.city || p.city === filters.city) &&
       (filters.unitTypes.length === 0 || filters.unitTypes.some((type) => p.unit_types.includes(type))) &&
       meetsMaximum(p.est_monthly_total_min, filters.maxMonthlyTotal) &&
@@ -143,6 +171,7 @@ export function filterProperties(items: PropertySummary[], filters: BrowseFilter
 export function countActiveFilters(filters: BrowseFilters): number {
   return (
     (filters.query.trim() ? 1 : 0) +
+    (filters.baseRent ? 1 : 0) +
     (filters.city ? 1 : 0) +
     (filters.unitTypes.length > 0 ? 1 : 0) +
     (filters.hideEligibilityRestricted ? 1 : 0) +

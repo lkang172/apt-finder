@@ -8,6 +8,7 @@ import {
   EMPTY_FILTERS,
   countActiveFilters,
   filterProperties,
+  rentBoundsFor,
   sortProperties,
   type BrowseFilters,
   type SortDirection,
@@ -16,7 +17,7 @@ import {
 import { formatMoney, pluralize } from "@/lib/format";
 import type { SourceNames } from "@/lib/presentation";
 import type { Meta, PropertySummary } from "@/lib/types";
-import { FilterBar, type ViewMode } from "./FilterBar";
+import { FilterBar, ViewToggle, type ViewMode } from "./FilterBar";
 import { PropertyCard } from "./PropertyCard";
 import type { MapPoint } from "./PropertyMap";
 
@@ -30,6 +31,7 @@ interface BrowseViewProps {
   total: number;
   cities: string[];
   office: Meta["office"] | null;
+  search: Meta["search"] | null;
   sourceNames: SourceNames;
 }
 
@@ -39,7 +41,7 @@ function mapLabel(property: PropertySummary): string {
   return "Price N/A";
 }
 
-export function BrowseView({ items, total, cities, office, sourceNames }: BrowseViewProps) {
+export function BrowseView({ items, total, cities, office, search, sourceNames }: BrowseViewProps) {
   const [filters, setFilters] = useState<BrowseFilters>(EMPTY_FILTERS);
   const [sortKey, setSortKey] = useState<SortKey>("overall");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -59,6 +61,7 @@ export function BrowseView({ items, total, cities, office, sourceNames }: Browse
       ),
     [visible],
   );
+  const rentBounds = useMemo(() => rentBoundsFor(search, items), [search, items]);
   const activeFilterCount = countActiveFilters(filters);
   const missingCoordinates = visible.length - mapPoints.length;
 
@@ -97,6 +100,7 @@ export function BrowseView({ items, total, cities, office, sourceNames }: Browse
             highlighted={property.id === selectedId}
             sortKey={sortKey}
             sourceNames={sourceNames}
+            baseRent={filters.baseRent}
             onHoverChange={setHoveredId}
           />
         </li>
@@ -110,28 +114,30 @@ export function BrowseView({ items, total, cities, office, sourceNames }: Browse
         filters={filters}
         onFiltersChange={setFilters}
         cities={cities}
+        rentBounds={rentBounds}
         sortKey={sortKey}
         sortDirection={sortDirection}
         onSortChange={(key, direction) => {
           setSortKey(key);
           setSortDirection(direction);
         }}
-        view={view}
-        onViewChange={setView}
         moreOpen={moreOpen}
         onMoreOpenChange={setMoreOpen}
         activeFilterCount={activeFilterCount}
         onClear={() => setFilters(EMPTY_FILTERS)}
       />
 
-      <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <p aria-live="polite" className="text-ink-muted">
           Showing <span className="font-semibold text-ink">{visible.length}</span> of {pluralize(total, "apartment")} that
           passed the hard filters
         </p>
-        <Link href="/excluded" className="font-medium text-accent hover:underline">
-          Excluded properties →
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/excluded" className="font-medium text-accent hover:underline">
+            Excluded properties →
+          </Link>
+          <ViewToggle view={view} onViewChange={setView} />
+        </div>
       </div>
 
       {visible.length === 0 ? (
