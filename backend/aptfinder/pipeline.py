@@ -143,3 +143,33 @@ def resolve_cities(names: Iterable[str] | None) -> list[SearchCity]:
         return list(SEARCH_CITIES)
     wanted = {n.strip().lower() for n in names}
     return [c for c in SEARCH_CITIES if c.name.lower() in wanted]
+
+
+def execute_run(
+    run_id: int,
+    settings: Settings,
+    cities: Iterable[str] | None = None,
+    sources: Iterable[str] = ("apartment_list", "redfin"),
+    skip_collection: bool = False,
+) -> RunContext:
+    from aptfinder.db.session import session_scope
+
+    client = make_client(settings)
+    with session_scope() as session:
+        run = session.get(CollectionRun, run_id)
+        ctx = RunContext(run, settings, client)
+        try:
+            if not skip_collection:
+                collect_listings(session, ctx, resolve_cities(cities), list(sources))
+            ctx.stats.update({f"status.{k}": v for k, v in apply_hard_filters(session, settings, utcnow()).items()})
+            ctx.stats["network_requests"] = client.network_requests
+            finish_run(session, ctx)
+        except Exception as exc:
+            log.exception("Run %s failed", run_id)
+            ctx.note("aptfinder", f"Run failed: {exc}")
+            ctx.stats["network_requests"] = client.network_requests
+            finish_run(session, ctx, failed=True)
+            raise
+        finally:
+            client.close()
+    return ctx

@@ -65,6 +65,13 @@ def get_engine() -> Engine:
     return _engine
 
 
+def use_engine(engine: Engine) -> None:
+    global _engine, _factory
+    init_db(engine)
+    _engine = engine
+    _factory = sessionmaker(engine, expire_on_commit=False)
+
+
 @contextmanager
 def session_scope() -> Iterator[Session]:
     get_engine()
