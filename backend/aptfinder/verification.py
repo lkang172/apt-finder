@@ -149,7 +149,7 @@ def evaluate_property_status(session: Session, prop: Property, settings: Setting
         for r in (e.data or {}).get("restrictions", [])
     ]
     listing_names = [ls.name for ls in prop.listing_sources if ls.name]
-    eligibility = excluded_eligibility(restrictions, " / ".join([prop.name, *listing_names]))
+    eligibility = excluded_eligibility(restrictions, " / ".join(dict.fromkeys([prop.name, *listing_names])))
     if eligibility:
         return PropertyStatus("excluded", [{"filter": "eligibility", "explanation": f"Senior or income-restricted housing excluded: {eligibility}"}])
 

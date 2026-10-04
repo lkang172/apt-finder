@@ -151,7 +151,7 @@ def assess_review_quality(
     if not review_list:
         summary = NO_REVIEWS_SUMMARY
         if listed_count:
-            summary += f". Rating summaries list {listed_count} reviews, but no individual review text was collected."
+            summary += f". Rating summaries list {listed_count} {plural(listed_count, 'review')}, but no individual review text was collected."
         return AssessmentDraft.insufficient(
             CATEGORY, summary, 0, total_reviews=0, rating_summaries=summaries, rating_summary_review_count=listed_count
         )
@@ -239,7 +239,7 @@ def assess_review_quality(
     if not burst and not duplicates:
         sentences.append("No suspicious bursts or near-identical reviews were detected.")
     if listed_count > total:
-        sentences.append(f"Rating summaries list {listed_count} reviews; {total} individual reviews were collected.")
+        sentences.append(f"Rating summaries list {listed_count} {plural(listed_count, 'review')}; {total} individual {plural(total, 'review')} {'was' if total == 1 else 'were'} collected.")
 
     details: dict[str, Any] = {
         "total_reviews": total,
