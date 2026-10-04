@@ -151,3 +151,19 @@ def test_same_street_address_accepted_beyond_150_m():
     assert evaluate_candidate(query, different_street) is None
     too_far = {**place, "location": {"latitude": 37.3990, "longitude": -122.071772}}
     assert evaluate_candidate(query, too_far) is None
+
+
+def test_name_overlap_counts_shared_numbers_only_alongside_words():
+    from aptfinder.collectors.google_places import name_overlap
+
+    assert name_overlap("Latitude 37", "Latitude 37", "San Jose") == 1.0
+    assert name_overlap("1200 Example", "1200 Storage", "Sunnyvale") == 0.0
+
+
+def test_same_name_on_same_street_with_different_number_is_probable():
+    from aptfinder.collectors.google_places import PropertyQuery, evaluate_candidate
+
+    query = PropertyQuery("Latitude 37", "1277 Babb Court", "San Jose", 37.290538, -121.875267)
+    place = {"id": "p", "displayName": {"text": "Latitude 37"}, "formattedAddress": "1255 Babb Ct, San Jose, CA 95125, USA",
+             "location": {"latitude": 37.29126, "longitude": -121.875267}}
+    assert evaluate_candidate(query, place).match_confidence == "probable"

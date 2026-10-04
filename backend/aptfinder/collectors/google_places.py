@@ -116,8 +116,12 @@ def evaluate_candidate(query: PropertyQuery, place: dict[str, Any]) -> PlaceMatc
         return PlaceMatch(place_id, display_name, formatted_address, lat, lon, round(distance, 1), True, overlap, confidence)
     if not (number_matches or strong_name):
         return None
+    their_street = normalize_street_address((formatted_address or "").split(",")[0])
+    same_street_name = bool(our_street and their_street) and our_street.split(" ", 1)[1:] == their_street.split(" ", 1)[1:]
     if number_matches and strong_name:
         confidence = "exact"
+    elif strong_name and same_street_name:
+        confidence = "probable"
     elif distance <= PROBABLE_MAX_METERS:
         confidence = "probable"
     else:
@@ -131,8 +135,8 @@ def name_overlap(property_name: str, place_name: str, city: str | None) -> float
     ignored = GENERIC_NAME_TOKENS | set(_tokens(city or ""))
     ours = set(_tokens(property_name)) - ignored
     theirs = set(_tokens(place_name)) - ignored
-    shared = {t for t in ours & theirs if not t.isdigit()}
-    if not shared:
+    shared = ours & theirs
+    if not any(not t.isdigit() for t in shared):
         return 0.0
     return round(len(shared) / min(len(ours), len(theirs)), 2)
 
