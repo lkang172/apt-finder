@@ -12,27 +12,28 @@ class SearchCity:
     name: str
     region: str
     apartment_list_slug: str
+    redfin_city_path: str
 
 
 SEARCH_CITIES: tuple[SearchCity, ...] = (
-    SearchCity("Foster City", "peninsula", "ca/foster-city"),
-    SearchCity("San Mateo", "peninsula", "ca/san-mateo"),
-    SearchCity("Belmont", "peninsula", "ca/belmont"),
-    SearchCity("San Carlos", "peninsula", "ca/san-carlos"),
-    SearchCity("Redwood City", "peninsula", "ca/redwood-city"),
-    SearchCity("Menlo Park", "peninsula", "ca/menlo-park"),
-    SearchCity("Palo Alto", "peninsula", "ca/palo-alto"),
-    SearchCity("Mountain View", "south_bay", "ca/mountain-view"),
-    SearchCity("Los Altos", "south_bay", "ca/los-altos"),
-    SearchCity("Sunnyvale", "south_bay", "ca/sunnyvale"),
-    SearchCity("Santa Clara", "south_bay", "ca/santa-clara"),
-    SearchCity("Cupertino", "south_bay", "ca/cupertino"),
-    SearchCity("Campbell", "south_bay", "ca/campbell"),
-    SearchCity("San Jose", "south_bay", "ca/san-jose"),
-    SearchCity("Milpitas", "south_bay", "ca/milpitas"),
-    SearchCity("Fremont", "east_bay", "ca/fremont"),
-    SearchCity("Newark", "east_bay", "ca/newark"),
-    SearchCity("Union City", "east_bay", "ca/union-city"),
+    SearchCity("Foster City", "peninsula", "ca/foster-city", "city/6524/CA/Foster-City"),
+    SearchCity("San Mateo", "peninsula", "ca/san-mateo", "city/17490/CA/San-Mateo"),
+    SearchCity("Belmont", "peninsula", "ca/belmont", "city/1362/CA/Belmont"),
+    SearchCity("San Carlos", "peninsula", "ca/san-carlos", "city/16687/CA/San-Carlos"),
+    SearchCity("Redwood City", "peninsula", "ca/redwood-city", "city/15525/CA/Redwood-City"),
+    SearchCity("Menlo Park", "peninsula", "ca/menlo-park", "city/11961/CA/Menlo-Park"),
+    SearchCity("Palo Alto", "peninsula", "ca/palo-alto", "city/14325/CA/Palo-Alto"),
+    SearchCity("Mountain View", "south_bay", "ca/mountain-view", "city/12739/CA/Mountain-View"),
+    SearchCity("Los Altos", "south_bay", "ca/los-altos", "city/11018/CA/Los-Altos"),
+    SearchCity("Sunnyvale", "south_bay", "ca/sunnyvale", "city/19457/CA/Sunnyvale"),
+    SearchCity("Santa Clara", "south_bay", "ca/santa-clara", "city/17675/CA/Santa-Clara"),
+    SearchCity("Cupertino", "south_bay", "ca/cupertino", "city/4561/CA/Cupertino"),
+    SearchCity("Campbell", "south_bay", "ca/campbell", "city/2673/CA/Campbell"),
+    SearchCity("San Jose", "south_bay", "ca/san-jose", "city/17420/CA/San-Jose"),
+    SearchCity("Milpitas", "south_bay", "ca/milpitas", "city/12204/CA/Milpitas"),
+    SearchCity("Fremont", "east_bay", "ca/fremont", "city/6671/CA/Fremont"),
+    SearchCity("Newark", "east_bay", "ca/newark", "city/13111/CA/Newark"),
+    SearchCity("Union City", "east_bay", "ca/union-city", "city/20321/CA/Union-City"),
 )
 
 # Cities that are inside the search corridor but are not searched directly;
