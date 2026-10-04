@@ -30,7 +30,7 @@ Useful variants:
 
 ```bash
 uv run python -m aptfinder run --cities Sunnyvale,Mountain\ View   # subset of cities
-uv run python -m aptfinder run --sources apartment_list            # skip Redfin
+uv run python -m aptfinder run --sources apartment_list,redfin     # also try Redfin (opt-in)
 uv run python -m aptfinder run --skip-collection                   # re-filter and re-evaluate stored evidence
 ```
 
@@ -63,7 +63,7 @@ root). See `backend/aptfinder/config.py`. Common ones:
 | `APTFINDER_PRICE_FRESHNESS_HOURS` | 72 | Prices older than this are never approved |
 | `APTFINDER_GOOGLE_MAPS_API_KEY` | empty | Optional: enables Google Routes (rush-hour) and Google Places (ratings/reviews) |
 | `APTFINDER_APARTMENT_LIST_MIN_INTERVAL_S` | 4.0 | Minimum seconds between requests to Apartment List |
-| `APTFINDER_REDFIN_MIN_INTERVAL_S` | 8.0 | Minimum seconds between requests to Redfin |
+| `APTFINDER_REDFIN_MIN_INTERVAL_S` | 8.0 | Minimum seconds between requests to Redfin (opt-in: `--sources apartment_list,redfin`) |
 
 ## Architecture
 

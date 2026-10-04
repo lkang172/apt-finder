@@ -15,18 +15,29 @@ import httpx
 
 log = logging.getLogger(__name__)
 
-CHALLENGE_MARKERS = (
+BLOCK_PAGE_MARKERS = (
     "<title>Client Challenge</title>",
     "px-captcha",
     "cf-chl-",
-    "g-recaptcha",
     "Access Denied</title>",
     "Pardon Our Interruption",
+)
+# These strings also appear inside normal pages (bot-management scripts, contact-form CAPTCHAs), so they
+# only indicate a challenge when the page is too small to contain real content.
+INTERSTITIAL_HINTS = (
     "awsWafCookieDomainList",
     "gokuProps",
     "AwsWafIntegration",
     "/cdn-cgi/challenge-platform/",
+    "g-recaptcha",
 )
+INTERSTITIAL_MAX_CHARS = 20_000
+
+
+def looks_like_challenge(text: str) -> bool:
+    if any(marker in text for marker in BLOCK_PAGE_MARKERS):
+        return True
+    return len(text) < INTERSTITIAL_MAX_CHARS and any(hint in text for hint in INTERSTITIAL_HINTS)
 
 
 class FetchError(Exception):
@@ -102,7 +113,7 @@ class PoliteClient:
 
         response = self._request_with_policy(url, accept)
         text = response.text
-        if any(marker in text for marker in CHALLENGE_MARKERS):
+        if looks_like_challenge(text):
             self._block(host, f"anti-bot challenge page returned for {url}")
         if response.status_code == 202:
             # Bot-mitigation layers (e.g. AWS WAF) answer 202 with an interstitial instead of content.

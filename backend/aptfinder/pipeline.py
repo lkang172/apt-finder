@@ -23,6 +23,8 @@ from aptfinder.verification import evaluate_property_status
 log = logging.getLogger(__name__)
 
 PREFILTER_MARGIN = 150
+# Redfin is opt-in: it began blocking this network and syndicates the same Zillow feed as other sources.
+DEFAULT_SOURCES = ("apartment_list",)
 
 
 @dataclass
@@ -199,7 +201,7 @@ def execute_run(
     run_id: int,
     settings: Settings,
     cities: Iterable[str] | None = None,
-    sources: Iterable[str] = ("apartment_list", "redfin"),
+    sources: Iterable[str] = DEFAULT_SOURCES,
     skip_collection: bool = False,
 ) -> RunContext:
     from aptfinder.db.session import session_scope

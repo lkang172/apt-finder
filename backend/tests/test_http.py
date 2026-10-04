@@ -181,3 +181,27 @@ def test_non_200_cache_entries_are_ignored(tmp_path):
     meta.write_text(json.dumps(data))
     again = client.get("https://example.com/p", ttl=timedelta(hours=1))
     assert not again.from_cache and first.text == again.text
+
+
+def test_normal_page_embedding_waf_script_is_not_a_challenge(tmp_path):
+    body = "<html><script>window.awsWafCookieDomainList = ['example.com'];</script>" + "<div>listing</div>" * 5000 + "</html>"
+
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="")
+        return httpx.Response(200, text=body)
+
+    client, _ = make_client(tmp_path, handler)
+    assert client.get("https://example.com/a", ttl=timedelta(hours=1)).status == 200
+    assert "example.com" not in client.blocked_hosts
+
+
+def test_small_page_with_waf_script_is_a_challenge(tmp_path):
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="")
+        return httpx.Response(200, text="<html><script>window.gokuProps = {};</script></html>")
+
+    client, _ = make_client(tmp_path, handler)
+    with pytest.raises(SourceBlocked):
+        client.get("https://example.com/a", ttl=timedelta(hours=1))
