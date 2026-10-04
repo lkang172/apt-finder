@@ -18,32 +18,27 @@ def test_summarizes_complaints_and_praise_with_counts():
         review(4, "Staff were friendly and helpful.", rating=5.0),
         review(5, "Super quiet and peaceful.", rating=5.0, years_ago=3),
     ]
-    result = summarize_comments(reviews, 8, NOW)
-    assert result.text.startswith("Sample only: the 5 of 8 Google reviews that Google's API shares (chosen by Google, not the full set), dated 2023–2025, averaging 2.6★.")
+    result = summarize_comments(reviews, NOW)
+    assert result.text.startswith("Complaints: ")
     assert "cockroach" in result.text.lower()
-    assert "In these 5, complaints:" in result.text and "Praise:" in result.text
+    assert "Praise: " in result.text
     assert result.reviews_used == 5 and len(result.evidence_ids) == 5
     assert "not AI-generated" in result.method
 
 
 def test_no_text_means_no_summary():
-    assert summarize_comments([review(1, "   ")], 3, NOW) is None
-    assert summarize_comments([], None, NOW) is None
+    assert summarize_comments([review(1, "   ")], NOW) is None
+    assert summarize_comments([], NOW) is None
 
 
 def test_old_reviews_are_flagged_and_ai_summaries_ignored():
     reviews = [review(1, "Roaches everywhere.", years_ago=5), review(2, "Google AI text", summary=True)]
-    result = summarize_comments(reviews, 1, NOW)
+    result = summarize_comments(reviews, NOW)
     assert "more than 2 years old" in result.text
     assert result.reviews_used == 1
 
 
 def test_no_topics_found_is_stated_plainly():
-    result = summarize_comments([review(1, "We moved in last spring.", rating=4.0)], 1, NOW)
-    assert "no specific topics" in result.text
+    result = summarize_comments([review(1, "We moved in last spring.", rating=4.0)], NOW)
+    assert result.text.startswith("No specific complaints or praise topics")
 
-
-def test_complete_set_is_not_called_a_sample():
-    result = summarize_comments([review(1, "Roaches in the kitchen."), review(2, "Very noisy.")], 2, NOW)
-    assert result.text.startswith("All 2 Google reviews with text")
-    assert "Sample only" not in result.text

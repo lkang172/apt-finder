@@ -377,7 +377,7 @@ function propertyA(imageBase) {
       rating: 4.4,
       count: 132,
       summary: "Residents frequently praise responsive maintenance and friendly staff. Some mention thin walls and limited guest parking.",
-      comments: "From the 5 Google review texts returned (of 132 Google ratings), dated 2025–2026, averaging 4.2★. Praise: responsive maintenance (3 reviews); friendly staff (2 reviews). Complaints: thin walls (2 reviews).",
+      comments: "Praise: responsive maintenance (3 reviews); friendly staff (2 reviews). Complaints: thin walls (2 reviews).",
     }),
     source_ids: [SOURCES.listings.id, SOURCES.official.id, SOURCES.reviews.id],
     listings: [
@@ -505,7 +505,7 @@ function propertyB() {
     google: googleOk(slug, {
       rating: 1.6,
       count: 47,
-      comments: "From the 5 Google review texts returned (of 47 Google ratings), dated 2019–2024, averaging 1.4★. Complaints: cockroaches (3 reviews); unresponsive management (2 reviews); noise from parties (1 review). Praise: convenient location (1 review). 2 of these reviews are more than 2 years old.",
+      comments: "Complaints: cockroaches (3 reviews); unresponsive management (2 reviews); noise from parties (1 review). Praise: convenient location (1 review). 2 of these reviews are more than 2 years old.",
     }),
     source_ids: [SOURCES.listings.id, SOURCES.rentals.id, SOURCES.official.id],
     listings: [
@@ -680,7 +680,7 @@ function propertyD(imageBase) {
       rating: 3.4,
       count: 18,
       match: "weak",
-      comments: "From the 4 Google review texts returned (of 18 Google ratings), dated 2018–2026, averaging 3.0★. Praise: quick repairs (2 reviews). Complaints: train noise (1 review); parking (1 review). 2 of these reviews are more than 2 years old.",
+      comments: "Praise: quick repairs (2 reviews). Complaints: train noise (1 review); parking (1 review). 2 of these reviews are more than 2 years old.",
     }),
     source_ids: [SOURCES.official.id, SOURCES.reviews.id, SOURCES.rentals.id],
     listings: [{ source_id: SOURCES.rentals.id, source_name: SOURCES.rentals.name, url: `https://rentals.example.com/${slug}`, name: "Sample Property D Studios", last_seen_at: "2026-10-03T16:20:00Z" }],

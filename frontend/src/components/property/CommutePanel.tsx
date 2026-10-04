@@ -22,6 +22,8 @@ export function CommutePanel({ commute, officeLabel }: CommutePanelProps) {
     );
   }
 
+  const hasRush = commute.am_rush_minutes !== null || commute.pm_rush_minutes !== null;
+
   return (
     <Card className="space-y-5">
       {officeLabel && (
@@ -29,47 +31,45 @@ export function CommutePanel({ commute, officeLabel }: CommutePanelProps) {
           Driving to <span className="font-medium text-ink">{officeLabel}</span>
         </p>
       )}
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <dl className={`grid grid-cols-2 gap-3 ${hasRush ? "lg:grid-cols-4" : ""}`}>
         <CommuteStat label="Distance" value={commute.distance_miles === null ? null : formatMiles(commute.distance_miles)} />
         <CommuteStat
           label="Normal drive"
           caption="Free-flow, no traffic"
           value={commute.free_flow_minutes === null ? null : formatMinutes(commute.free_flow_minutes)}
         />
-        <CommuteStat
-          label="Weekday AM rush"
-          value={commute.am_rush_minutes === null ? null : formatMinutes(commute.am_rush_minutes)}
-          unavailableText={commute.rush_status}
-        />
-        <CommuteStat
-          label="Weekday PM rush"
-          value={commute.pm_rush_minutes === null ? null : formatMinutes(commute.pm_rush_minutes)}
-          unavailableText={commute.rush_status}
-        />
+        {hasRush && (
+          <>
+            <CommuteStat
+              label="Weekday AM rush"
+              value={commute.am_rush_minutes === null ? null : formatMinutes(commute.am_rush_minutes)}
+              unavailableText={commute.rush_status}
+            />
+            <CommuteStat
+              label="Weekday PM rush"
+              value={commute.pm_rush_minutes === null ? null : formatMinutes(commute.pm_rush_minutes)}
+              unavailableText={commute.rush_status}
+            />
+          </>
+        )}
       </dl>
 
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 border-t border-line pt-4 text-sm sm:grid-cols-2">
+      <dl className="flex flex-wrap gap-x-8 gap-y-3 border-t border-line pt-4 text-sm">
         <div>
-          <dt className="text-xs font-medium text-ink-faint">Methodology</dt>
-          <dd className="text-ink">{commute.methodology}</dd>
+          <dt className="text-xs font-medium text-ink-faint">Provider</dt>
+          <dd className="text-ink">{commute.provider}</dd>
         </div>
-        <div className="space-y-2">
-          <div>
-            <dt className="text-xs font-medium text-ink-faint">Provider</dt>
-            <dd className="text-ink">{commute.provider}</dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium text-ink-faint">Computed</dt>
-            <dd className="text-ink">
-              <Timestamp iso={commute.computed_at} />
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium text-ink-faint">Confidence</dt>
-            <dd>
-              <ConfidenceBadge confidence={commute.confidence} />
-            </dd>
-          </div>
+        <div>
+          <dt className="text-xs font-medium text-ink-faint">Computed</dt>
+          <dd className="text-ink">
+            <Timestamp iso={commute.computed_at} />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-ink-faint">Confidence</dt>
+          <dd>
+            <ConfidenceBadge confidence={commute.confidence} />
+          </dd>
         </div>
       </dl>
 

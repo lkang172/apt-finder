@@ -194,7 +194,7 @@ def google_brief(session: Session, prop: Property, settings: Settings) -> s.Goog
     ).first()
     count = rating.count if rating else None
     google_reviews = [r for r in review_inputs(session, prop) if r.source_id == "google_places" and not r.is_summary]
-    comments = summarize_comments(google_reviews, count, utcnow())
+    comments = summarize_comments(google_reviews, utcnow())
     if rating and rating.average is not None and count:
         explanation = f"{rating.average:.1f} stars across {count} Google ratings; Google returns at most 5 review texts"
     else:

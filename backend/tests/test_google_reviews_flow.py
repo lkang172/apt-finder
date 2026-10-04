@@ -247,6 +247,6 @@ def test_google_brief_includes_keyword_comments_summary(central_park, monkeypatc
     detail = TestClient(app_module.app).get(f"/api/properties/{central_park}").json()
     google = detail["google"]
     assert google["summary"] is None
-    assert google["comments_summary"].startswith("Sample only: the 5 of 8 Google reviews")
+    assert google["comments_summary"].startswith("Complaints: ")
     assert "cockroach" in google["comments_summary"].lower()
     assert "not AI-generated" in google["comments_summary_method"]
