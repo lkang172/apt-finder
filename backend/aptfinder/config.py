@@ -41,8 +41,8 @@ ADDITIONAL_ALLOWED_CITIES: dict[str, str] = {
     "East Palo Alto": "peninsula",
     "Atherton": "peninsula",
     "Stanford": "peninsula",
-    "Saratoga": "south_bay",
     "Los Altos Hills": "south_bay",
+    "Alviso": "south_bay",
 }
 
 
