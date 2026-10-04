@@ -22,6 +22,10 @@ CHALLENGE_MARKERS = (
     "g-recaptcha",
     "Access Denied</title>",
     "Pardon Our Interruption",
+    "awsWafCookieDomainList",
+    "gokuProps",
+    "AwsWafIntegration",
+    "/cdn-cgi/challenge-platform/",
 )
 
 
@@ -100,7 +104,10 @@ class PoliteClient:
         text = response.text
         if any(marker in text for marker in CHALLENGE_MARKERS):
             self._block(host, f"anti-bot challenge page returned for {url}")
-        if response.status_code >= 400:
+        if response.status_code == 202:
+            # Bot-mitigation layers (e.g. AWS WAF) answer 202 with an interstitial instead of content.
+            self._block(host, f"HTTP 202 interstitial instead of content for {url}")
+        if response.status_code != 200:
             raise FetchError(f"HTTP {response.status_code} for {url}")
         return self._write_cache(url, str(response.url), response.status_code, text)
 
@@ -109,7 +116,7 @@ class PoliteClient:
         self._ensure_not_blocked(urlsplit(url).netloc)
         self._ensure_robots_allow(url)
         response = self._request_with_policy(url, accept)
-        if response.status_code >= 400:
+        if response.status_code != 200:
             raise FetchError(f"HTTP {response.status_code} for {url}")
         return response.content
 
@@ -207,6 +214,8 @@ class PoliteClient:
         if not meta_path.exists():
             return None
         meta = json.loads(meta_path.read_text())
+        if meta.get("status") != 200:
+            return None
         fetched_at = datetime.fromisoformat(meta["fetched_at"])
         if datetime.now(UTC) - fetched_at > ttl:
             return None

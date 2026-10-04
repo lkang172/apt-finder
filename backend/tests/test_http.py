@@ -138,3 +138,46 @@ def test_cross_host_redirect_is_not_followed(tmp_path):
     with pytest.raises(FetchError):
         client.get("https://example.com/a", ttl=timedelta(hours=1))
     assert "example.com" not in client.blocked_hosts
+
+
+def test_aws_waf_interstitial_blocks_and_is_not_cached(tmp_path):
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="")
+        return httpx.Response(202, text="<script>window.awsWafCookieDomainList = ['example.com'];</script>")
+
+    client, _ = make_client(tmp_path, handler)
+    with pytest.raises(SourceBlocked):
+        client.get("https://example.com/a", ttl=timedelta(hours=1))
+    assert not list((tmp_path / "http_cache").glob("*.json")) or all(
+        '"status": 200' in p.read_text() for p in (tmp_path / "http_cache").glob("*.json")
+    )
+
+
+def test_bare_202_without_markers_still_blocks(tmp_path):
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="")
+        return httpx.Response(202, text="<html></html>")
+
+    client, _ = make_client(tmp_path, handler)
+    with pytest.raises(SourceBlocked):
+        client.get("https://example.com/a", ttl=timedelta(hours=1))
+
+
+def test_non_200_cache_entries_are_ignored(tmp_path):
+    import json
+
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="")
+        return httpx.Response(200, text="real content")
+
+    client, _ = make_client(tmp_path, handler)
+    first = client.get("https://example.com/p", ttl=timedelta(hours=1))
+    meta = next(p for p in (tmp_path / "http_cache").glob("*.json") if json.loads(p.read_text())["url"].endswith("/p"))
+    data = json.loads(meta.read_text())
+    data["status"] = 202
+    meta.write_text(json.dumps(data))
+    again = client.get("https://example.com/p", ttl=timedelta(hours=1))
+    assert not again.from_cache and first.text == again.text
