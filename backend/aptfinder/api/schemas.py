@@ -61,6 +61,7 @@ class PropertySummary(BaseModel):
     scores: dict[Category, ScoreBrief]
     strongest_positive: Highlight | None
     strongest_concern: Highlight | None
+    eligibility_notes: list[str]
     source_ids: list[str]
 
 

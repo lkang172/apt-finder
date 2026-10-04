@@ -57,6 +57,7 @@ interface PropertySummary {
   scores: Record<Category, ScoreBrief>;
   strongest_positive: Highlight | null;
   strongest_concern: Highlight | null;
+  eligibility_notes: string[];            // e.g. ["Senior Housing"], ["Affordable Housing"]; show prominently
   source_ids: string[];
 }
 

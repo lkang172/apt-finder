@@ -206,6 +206,10 @@ def summary(session: Session, ctx: PropertyContext, names: SourceNames) -> s.Pro
         assessment = ctx.assessments.get(category)
         scores[category] = s.ScoreBrief(score=assessment.score if assessment else None, confidence=assessment.confidence if assessment else "insufficient")
     positive, concern = highlights(session, ctx)
+    eligibility = session.scalars(
+        select(Evidence).where(Evidence.property_id == prop.id, Evidence.kind == "listing_fact", Evidence.title == "Eligibility restrictions")
+    ).all()
+    eligibility_notes = sorted({r for e in eligibility for r in (e.data or {}).get("restrictions", [])})
     price_status = ctx.price.status if ctx.price.status in ("verified", "conflict", "stale") else "stale"
     return s.PropertySummary(
         id=prop.id,
@@ -236,6 +240,7 @@ def summary(session: Session, ctx: PropertyContext, names: SourceNames) -> s.Pro
         scores=scores,
         strongest_positive=positive,
         strongest_concern=concern,
+        eligibility_notes=eligibility_notes,
         source_ids=sorted({ls.source_id for ls in ctx.listings}),
     )
 

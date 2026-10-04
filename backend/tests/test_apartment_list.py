@@ -101,3 +101,14 @@ def test_review_keys_are_stable():
     first = parse_listing_page(load("al_arches"), "https://x", FETCH).reviews[0].source_review_key
     second = parse_listing_page(load("al_arches"), "https://x", FETCH).reviews[0].source_review_key
     assert first == second
+
+
+def test_eligibility_restrictions_become_facts():
+    html = (
+        load("al_cp")
+        .replace('\\"occupancy_types\\":[]', '\\"occupancy_types\\":[\\"senior\\"]')
+        .replace('\\"display_occupancy_types\\":[]', '\\"display_occupancy_types\\":[\\"Senior Housing\\"]')
+    )
+    listing = parse_listing_page(html, "https://x", FETCH)
+    fact = next(f for f in listing.facts if f.key == "eligibility")
+    assert fact.data["restrictions"] == ["Senior Housing"]

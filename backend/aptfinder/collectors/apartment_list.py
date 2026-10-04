@@ -221,6 +221,9 @@ def _facts(listing: dict[str, Any], url: str) -> list[CollectedFact]:
     units = listing.get("total_units_count")
     if built or units:
         add("building", "Building facts", ", ".join(p for p in (f"Built {built}" if built else "", f"{units} units" if units else "") if p), ["property"], {"year_built": built, "total_units": units})
+    occupancy = [str(o) for o in listing.get("display_occupancy_types") or listing.get("occupancy_types") or []]
+    if occupancy:
+        add("eligibility", "Eligibility restrictions", f"Listed as: {', '.join(occupancy)}. Eligibility requirements (such as age or income limits) may apply.", ["eligibility"], {"restrictions": occupancy})
     for special in listing.get("specials") or []:
         if special.get("raw_text"):
             add(f"special_{special.get('id')}", "Rent special", special["raw_text"], ["price"], {"expires_at": special.get("expires_at")})

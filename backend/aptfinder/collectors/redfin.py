@@ -203,6 +203,13 @@ def parse_building_page(html: str, url: str, fetch: FetchResult, stub: Discovery
             )
         )
 
+    restrictions = [label for flag, label in (
+        ("isIncomeRestricted", "Income-restricted housing"), ("isSeniorLiving", "Senior housing"),
+        ("isStudent", "Student housing"), ("isMilitary", "Military housing"),
+    ) if rental.get(flag)]
+    if restrictions:
+        facts.append(CollectedFact("eligibility", "Eligibility restrictions", f"Listed as: {', '.join(restrictions)}. Eligibility requirements may apply.", ["eligibility"], {"restrictions": restrictions}, url))
+
     street = address.get("formattedStreetLine") or (stub.name if stub else None)
     return CollectedListing(
         source_id=SOURCE_ID,
