@@ -61,6 +61,7 @@ class PropertySummary(BaseModel):
     unit_types: list[Literal["studio", "1br"]]
     rent_min: int | None
     rent_max: int | None
+    qualifying_rents: list[int]
     est_monthly_total_min: float | None
     has_unknown_required_costs: bool
     has_promotion: bool

@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     data_dir: Path = REPO_ROOT / "data"
     database_url: str = ""
 
-    min_rent: int = 2500
+    min_rent: int = 2100
     max_rent: int = 3000
     allowed_bedrooms: tuple[int, ...] = (0, 1)
 

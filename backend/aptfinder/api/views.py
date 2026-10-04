@@ -276,6 +276,7 @@ def summary(session: Session, ctx: PropertyContext, names: SourceNames, settings
         unit_types=unit_types,
         rent_min=min(rents) if rents else None,
         rent_max=max(rents) if rents else None,
+        qualifying_rents=sorted({r for q in qualifying for r in (q.observation.base_rent_min, q.observation.base_rent_max) if r is not None and settings.min_rent <= r <= settings.max_rent}),
         est_monthly_total_min=cost.est_total_min,
         has_unknown_required_costs=bool(cost.unknown_required),
         has_promotion=any(q.observation.is_promotional for q in qualifying),

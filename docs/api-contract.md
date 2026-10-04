@@ -57,6 +57,7 @@ interface PropertySummary {
   unit_types: ("studio" | "1br")[];       // qualifying, fresh units only
   rent_min: number | null;                // advertised BASE rent of qualifying units
   rent_max: number | null;
+  qualifying_rents: number[];             // distinct base rents of qualifying units, ascending — use for custom price-range filtering
   est_monthly_total_min: number | null;   // base + confirmed mandatory recurring fees
   has_unknown_required_costs: boolean;    // e.g. "renter's insurance required" with no amount
   has_promotion: boolean;

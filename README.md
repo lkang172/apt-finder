@@ -1,7 +1,7 @@
 # Apt Finder
 
 A personal Bay Area apartment research analyst with receipts. It finds studio and one-bedroom
-apartments advertised at **$2,500–$3,000/month base rent** between Foster City, San Jose, and Fremont,
+apartments advertised at **$2,100–$3,000/month base rent** between Foster City, San Jose, and Fremont,
 scores them for commute, noise, management, pests, safety, and recurring issues, and lets you trace
 every score back to the evidence and the original source.
 
@@ -59,7 +59,7 @@ root). See `backend/aptfinder/config.py`. Common ones:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `APTFINDER_MIN_RENT` / `APTFINDER_MAX_RENT` | 2500 / 3000 | Hard base-rent filter (inclusive) |
+| `APTFINDER_MIN_RENT` / `APTFINDER_MAX_RENT` | 2100 / 3000 | Hard base-rent filter (inclusive) |
 | `APTFINDER_PRICE_FRESHNESS_HOURS` | 72 | Prices older than this are never approved |
 | `APTFINDER_GOOGLE_MAPS_API_KEY` | empty | Optional: enables Google Routes (rush-hour) and Google Places (ratings/reviews) |
 | `APTFINDER_APARTMENT_LIST_MIN_INTERVAL_S` | 4.0 | Minimum seconds between requests to Apartment List |
@@ -145,7 +145,7 @@ updates records instead of duplicating them, and the raw page behind each record
    inside the search corridor. San Francisco, Oakland, Hayward, Burlingame and north, and Morgan Hill
    and south are rejected programmatically.
 2. **Unit type and price**: at least one studio or one-bedroom whose *advertised base rent* is between
-   $2,500 and $3,000 inclusive. A floor-plan price range qualifies only if one of its endpoints (each a
+   $2,100 and $3,000 inclusive. A floor-plan price range qualifies only if one of its endpoints (each a
    real advertised price) is in range.
 3. **Freshness**: the qualifying price must have been fetched within 72 hours, its source must have
    updated it within 21 days, and the unit must still appear in that source's latest fetch. Properties

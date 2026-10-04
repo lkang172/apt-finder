@@ -42,6 +42,7 @@ def test_list_only_returns_hard_filter_passing_properties(client):
     assert item["name"] == "Central Park Apartments"
     assert item["unit_types"] == ["1br"]
     assert item["rent_min"] == 2715 and item["est_monthly_total_min"] == 2715
+    assert item["qualifying_rents"] == [2715]
     assert item["has_unknown_required_costs"] is True
     assert item["review"]["status"] == "no_reviews"
     assert item["overall"] == {"score": None, "confidence": "insufficient"}
@@ -98,7 +99,7 @@ def test_trigger_run_starts_background_run_and_rejects_concurrent(client, monkey
 def test_meta_reports_office_and_search(client):
     meta = client.get("/api/meta").json()
     assert meta["office"]["address"] == "242 Humboldt Ct, Sunnyvale, CA 94089"
-    assert meta["search"] == {"min_rent": 2500, "max_rent": 3000, "unit_types": ["studio", "1br"]}
+    assert meta["search"] == {"min_rent": 2100, "max_rent": 3000, "unit_types": ["studio", "1br"]}
 
 
 def test_undisclosed_required_fees_are_unknown_not_zero(client):
