@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from aptfinder.collectors.types import CollectedListing, CollectedUnit
+from aptfinder.collectors.types import CollectedListing, CollectedRating, CollectedReview, CollectedUnit
 from aptfinder.db.models import (
     Evidence,
     FeeObservation,
@@ -238,52 +238,82 @@ def upsert_listing(session: Session, listing: CollectedListing, run_id: int | No
             )
         )
 
-    for review in listing.reviews:
-        evidence_id = stable_id("ev", "review", listing.source_id, review.source_review_key)
-        page_url = listing.rating.source_url if listing.rating and listing.rating.source_url else listing.url
-        review_categories = ["noise", "management", "pests", "building_safety", "neighborhood_safety", "other_issues", "review_quality"]
+    page_url = listing.rating.source_url if listing.rating and listing.rating.source_url else listing.url
+    save_reviews(session, prop, listing.source_id, listing.reviews, page_url, collected_at, raw.id)
+    if listing.rating is not None:
+        save_rating(session, prop, listing.source_id, listing.rating, listing.url, collected_at,
+                    stable_id("ev", "rating", listing.source_id, listing.source_listing_id, listing.fetch.content_sha256), raw.id)
+    session.flush()
+    return prop, link
+
+
+REVIEW_CATEGORIES = ["noise", "management", "pests", "building_safety", "neighborhood_safety", "other_issues", "review_quality"]
+
+
+def save_reviews(
+    session: Session,
+    prop: Property,
+    source_id: str,
+    reviews: list[CollectedReview],
+    page_url: str | None,
+    collected_at: datetime,
+    raw_document_id: int | None = None,
+) -> None:
+    for review in reviews:
+        evidence_id = stable_id("ev", "review", source_id, review.source_review_key)
         _upsert_evidence(
             session, evidence_id, kind="review", source_url=review.review_url, source_page_url=page_url,
             title=f"Review by {review.reviewer or 'anonymous reviewer'}", content=review.text or "(rating only, no text)",
-            categories=review_categories,
+            categories=REVIEW_CATEGORIES,
             data={"rating": review.rating, "reviewer": review.reviewer, "subscores": review.subscores, **review.extra},
-            published_at=review.review_date, property_id=prop.id, source_id=listing.source_id,
-            collected_at=collected_at, raw_document_id=raw.id,
+            published_at=review.review_date, property_id=prop.id, source_id=source_id,
+            collected_at=collected_at, raw_document_id=raw_document_id,
         )
-        existing_review = session.get(Review, evidence_id)
-        if existing_review is None:
+        existing = session.get(Review, evidence_id)
+        if existing is None:
             session.add(
                 Review(
-                    evidence_id=evidence_id, property_id=prop.id, source_id=listing.source_id,
+                    evidence_id=evidence_id, property_id=prop.id, source_id=source_id,
                     source_review_key=review.source_review_key, reviewer=review.reviewer, rating=review.rating,
                     review_date=review.review_date, text=review.text, subscores=review.subscores,
                     review_url=review.review_url, source_page_url=page_url, extra=review.extra, collected_at=collected_at,
                 )
             )
         else:
-            existing_review.property_id = prop.id
-
-    if listing.rating is not None:
-        rating = listing.rating
-        evidence_id = stable_id("ev", "rating", listing.source_id, listing.source_listing_id, listing.fetch.content_sha256)
-        if session.get(Evidence, evidence_id) is None:
-            content = (
-                f"{rating.average:.1f} / {rating.scale:g} average across {rating.count} review(s)"
-                if rating.average is not None and rating.count
-                else "No reviews listed"
-            )
-            if rating.note:
-                content += f" — {rating.note}"
-            _upsert_evidence(
-                session, evidence_id, kind="rating_summary", source_url=rating.source_url, source_page_url=listing.url,
-                title="Review rating summary", content=content, categories=["review_quality"],
-                data={"average": rating.average, "count": rating.count, "scale": rating.scale}, **common,
-            )
-            session.add(
-                RatingSummary(
-                    property_id=prop.id, source_id=listing.source_id, average=rating.average, count=rating.count,
-                    scale=rating.scale, observed_at=collected_at, source_url=rating.source_url, evidence_id=evidence_id,
-                )
-            )
+            existing.property_id = prop.id
     session.flush()
-    return prop, link
+
+
+def save_rating(
+    session: Session,
+    prop: Property,
+    source_id: str,
+    rating: CollectedRating,
+    page_url: str | None,
+    collected_at: datetime,
+    evidence_id: str,
+    raw_document_id: int | None = None,
+    match_confidence: str = "exact",
+) -> None:
+    if session.get(Evidence, evidence_id) is not None:
+        return
+    content = (
+        f"{rating.average:.1f} / {rating.scale:g} average across {rating.count} review(s)"
+        if rating.average is not None and rating.count
+        else "No reviews listed"
+    )
+    if rating.note:
+        content += f" — {rating.note}"
+    _upsert_evidence(
+        session, evidence_id, kind="rating_summary", source_url=rating.source_url, source_page_url=page_url,
+        title="Review rating summary", content=content, categories=["review_quality"],
+        data={"average": rating.average, "count": rating.count, "scale": rating.scale, "match_confidence": match_confidence},
+        property_id=prop.id, source_id=source_id, collected_at=collected_at, raw_document_id=raw_document_id,
+    )
+    session.add(
+        RatingSummary(
+            property_id=prop.id, source_id=source_id, average=rating.average, count=rating.count, scale=rating.scale,
+            observed_at=collected_at, source_url=rating.source_url, match_confidence=match_confidence, evidence_id=evidence_id,
+        )
+    )
+    session.flush()
