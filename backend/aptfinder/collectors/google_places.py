@@ -10,6 +10,7 @@ from aptfinder.collectors.page_data import as_float, as_int, parse_timestamp
 from aptfinder.collectors.types import CollectedRating, CollectedReview
 from aptfinder.geo import haversine_meters
 from aptfinder.ids import stable_id
+from aptfinder.normalize import normalize_street_address
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +22,9 @@ SEARCH_FIELD_MASK = "places.id,places.displayName,places.formattedAddress,places
 DETAILS_FIELD_MASK = "rating,userRatingCount,reviews,googleMapsUri,reviewSummary"
 MAX_MATCH_METERS = 150.0
 PROBABLE_MAX_METERS = 75.0
+# Large complexes are often pinned at a leasing office a few hundred meters from a listing's coordinates;
+# an identical street address is strong enough evidence to accept those farther pins.
+ADDRESS_MATCH_MAX_METERS = 500.0
 SEARCH_BIAS_RADIUS_METERS = 500.0
 STRONG_NAME_OVERLAP = 0.6
 RATING_NOTE = (
@@ -103,7 +107,14 @@ def evaluate_candidate(query: PropertyQuery, place: dict[str, Any]) -> PlaceMatc
     number_matches = our_number is not None and our_number == _street_number(formatted_address)
     overlap = name_overlap(query.name, display_name, query.city)
     strong_name = overlap >= STRONG_NAME_OVERLAP
-    if distance > MAX_MATCH_METERS or not (number_matches or strong_name):
+    our_street = normalize_street_address(query.street_address)
+    street_matches = our_street is not None and our_street == normalize_street_address((formatted_address or "").split(",")[0])
+    if distance > MAX_MATCH_METERS:
+        if not street_matches or distance > ADDRESS_MATCH_MAX_METERS:
+            return None
+        confidence = "exact" if strong_name else "probable"
+        return PlaceMatch(place_id, display_name, formatted_address, lat, lon, round(distance, 1), True, overlap, confidence)
+    if not (number_matches or strong_name):
         return None
     if number_matches and strong_name:
         confidence = "exact"

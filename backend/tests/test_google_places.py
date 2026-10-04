@@ -92,7 +92,7 @@ def test_review_without_a_returned_url_gets_none_and_keeps_original_text():
 
 def test_no_candidate_within_range_returns_none_without_fetching_details():
     seen: list[httpx.Request] = []
-    far = {"places": [place("Example Gardens", "1200 Example Ave, Sunnyvale, CA", 37.3736, -122.03)]}
+    far = {"places": [place("Example Gardens", "1200 Example Ave, Sunnyvale, CA", 37.3760, -122.03)]}
     with places_client(seen, far) as client:
         assert client.collect(QUERY) is None
     assert len(seen) == 1
@@ -105,7 +105,7 @@ def test_no_candidate_within_range_returns_none_without_fetching_details():
         (place("Example Gardens", "1250 Example Ave, Sunnyvale, CA", 37.3704, -122.03), "probable"),
         (place("Leasing Office", "1200 Example Ave, Sunnyvale, CA", 37.3711, -122.03), "weak"),
         (place("Sunnyvale Self Storage", "1210 Example Ave, Sunnyvale, CA", 37.3703, -122.0302), None),
-        (place("Example Gardens", "1200 Example Ave, Sunnyvale, CA", 37.3716, -122.03), None),
+        (place("Example Gardens", "1200 Example Ave, Sunnyvale, CA", 37.3760, -122.03), None),
     ],
 )
 def test_match_confidence_requires_proximity_and_address_or_name(candidate, expected):
@@ -136,3 +136,18 @@ def test_api_errors_raise_with_google_message():
     with GooglePlacesClient(API_KEY, transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(GooglePlacesError, match="HTTP 403: Places API"):
             client.collect(QUERY)
+
+
+def test_same_street_address_accepted_beyond_150_m():
+    from aptfinder.collectors.google_places import PropertyQuery, evaluate_candidate
+
+    query = PropertyQuery("Eaves Creekside", "151 Calderon Avenue", "Mountain View", 37.391011, -122.071772)
+    place = {"id": "p1", "displayName": {"text": "eaves Creekside"}, "formattedAddress": "151 Calderon Ave, Mountain View, CA 94041, USA",
+             "location": {"latitude": 37.392711, "longitude": -122.071772}}
+    match = evaluate_candidate(query, place)
+    assert match is not None and match.match_confidence == "exact" and 150 < match.distance_meters < 500
+
+    different_street = {**place, "formattedAddress": "300 Other St, Mountain View, CA 94041, USA"}
+    assert evaluate_candidate(query, different_street) is None
+    too_far = {**place, "location": {"latitude": 37.3990, "longitude": -122.071772}}
+    assert evaluate_candidate(query, too_far) is None
