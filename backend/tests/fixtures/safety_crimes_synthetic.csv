@@ -1,0 +1,13 @@
+Year,County,NCICCode,Violent_sum,Homicide_sum,Property_sum,Burglary_sum
+2010,Example County,Alphaville,1,0,1,0
+2010,Example County,Deltaport,3,0,40,10
+2024,Example County,Alphaville,999,0,9999,0
+2025,Example County,Example,100,1,1000,200
+2025,Example County,Alphaville,250,2,3000,500
+2025,Example County,Betatown,5,0,150,30
+2025,Example County,Example Co. Sheriff's Department,400,3,2000,300
+2025,Example County,CSU Alphaville,10,0,90,5
+2025,Sample County,Pena-Heights,30,0,300,40
+2025,Sample County,Puerto,12,0,120,20
+2025,Sample County,Sample Transit District,,,,
+2025,San Francisco County,San Francisco,3000,20,20000,4000

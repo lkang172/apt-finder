@@ -90,15 +90,11 @@ class PoliteClient:
 
     def get(self, url: str, *, ttl: timedelta, accept: str = "text/html,application/xhtml+xml") -> FetchResult:
         host = urlsplit(url).netloc
-        if host in self.blocked_hosts:
-            raise SourceBlocked(f"{host} blocked earlier in this run: {self.blocked_hosts[host]}")
-
+        self._ensure_not_blocked(host)
         cached = self._read_cache(url, ttl)
         if cached is not None:
             return cached
-
-        if not self._robots_allows(url):
-            raise RobotsDisallowed(f"robots.txt disallows {url}")
+        self._ensure_robots_allow(url)
 
         response = self._request_with_policy(url, accept)
         text = response.text
@@ -107,6 +103,23 @@ class PoliteClient:
         if response.status_code >= 400:
             raise FetchError(f"HTTP {response.status_code} for {url}")
         return self._write_cache(url, str(response.url), response.status_code, text)
+
+    def get_bytes(self, url: str, accept: str = "*/*") -> bytes:
+        """Uncached binary download under the same robots.txt, throttling, and blocking policy."""
+        self._ensure_not_blocked(urlsplit(url).netloc)
+        self._ensure_robots_allow(url)
+        response = self._request_with_policy(url, accept)
+        if response.status_code >= 400:
+            raise FetchError(f"HTTP {response.status_code} for {url}")
+        return response.content
+
+    def _ensure_not_blocked(self, host: str) -> None:
+        if host in self.blocked_hosts:
+            raise SourceBlocked(f"{host} blocked earlier in this run: {self.blocked_hosts[host]}")
+
+    def _ensure_robots_allow(self, url: str) -> None:
+        if not self._robots_allows(url):
+            raise RobotsDisallowed(f"robots.txt disallows {url}")
 
     def _request_with_policy(self, url: str, accept: str) -> httpx.Response:
         host = urlsplit(url).netloc

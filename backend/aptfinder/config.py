@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     user_agent: str = (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36"
     )
+    api_user_agent: str = "apt-finder/0.1 (personal apartment research; https://github.com/lkang172/apt-finder)"
     apartment_list_min_interval_s: float = 4.0
     redfin_min_interval_s: float = 8.0
     redfin_max_pages_per_city: int = 3

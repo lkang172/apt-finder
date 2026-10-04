@@ -1,0 +1,65 @@
+{
+ "code": "Ok",
+ "distances": [
+  [
+   7859.5
+  ],
+  [
+   37534.4
+  ],
+  [
+   27571.3
+  ]
+ ],
+ "destinations": [
+  {
+   "hint": "rir9hs8q_YZDAAAAFQAAAAAAAAAAAAAAOc45QiMIZUEAAAAAAAAAAEMAAAAVAAAAAAAAAAAAAAAvfwAAAia6-IbNOgLxJbr4VM06AgAAnwYAAAAA",
+   "location": [
+    -122.018302,
+    37.408134
+   ],
+   "name": "Humboldt Court",
+   "distance": 5.749673808
+  }
+ ],
+ "durations": [
+  [
+   676.9
+  ],
+  [
+   2123
+  ],
+  [
+   1418.6
+  ]
+ ],
+ "sources": [
+  {
+   "hint": "GeXdhBvl3YQAAAAAtwAAAAAAAAAAAAAAAAAAALRkGEIAAAAAAAAAAAAAAABbAAAAAAAAAAAAAAAvfwAAsgG6-OQFOgKDALr41AY6AgAAPwwAAAAA",
+   "location": [
+    -122.027598,
+    37.357028
+   ],
+   "name": "",
+   "distance": 37.81197742
+  },
+  {
+   "hint": "S0c-gJX3vIMgAAAAAAAAACkAAAAkAAAAzz-yQQAAAABZJeJBeb3HQSAAAAAAAAAAKQAAACQAAAAvfwAAZLu4-IZdPALg5rj4YDQ8AgIAXw4AAAAA",
+   "location": [
+    -122.111132,
+    37.510534
+   ],
+   "name": "Marshlands Road",
+   "distance": 1528.135056
+  },
+  {
+   "hint": "UbE6hP___38JAAAAFAAAADoAAAAKAAAAHSI-QZJSVEHs_JJC1wxRQQkAAAAUAAAAOgAAAAoAAAAvfwAAb5y6-ObxPAJgnLr41PE8AggA7xIAAAAA",
+   "location": [
+    -121.987985,
+    37.548518
+   ],
+   "name": "Fremont Boulevard",
+   "distance": 2.397753241
+  }
+ ]
+}

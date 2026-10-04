@@ -49,6 +49,16 @@ def make_client(settings: Settings) -> PoliteClient:
     )
 
 
+def make_api_client(settings: Settings) -> PoliteClient:
+    """Open-data and routing APIs ask callers to identify the application in the User-Agent."""
+    return PoliteClient(
+        settings.data_dir,
+        settings.api_user_agent,
+        min_intervals={"router.project-osrm.org": settings.osrm_min_interval_s},
+        default_interval=1.0,
+    )
+
+
 def _stub_in_corridor(stub: DiscoveryStub) -> bool:
     if stub.lat is None or stub.lon is None:
         return True

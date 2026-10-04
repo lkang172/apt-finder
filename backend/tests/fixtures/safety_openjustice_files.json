@@ -1,0 +1,134 @@
+{
+ "data": [
+  {
+   "type": "file--file",
+   "id": "5a7989c4-e636-48a6-ac0e-28b43d4619fa",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2021.csv",
+    "uri": {
+     "value": "public://dataset/2022-08/Crimes_and_Clearances_with_Arson-1985-2021.csv",
+     "url": "/sites/default/files/dataset/2022-08/Crimes_and_Clearances_with_Arson-1985-2021.csv"
+    },
+    "created": "2022-08-15T17:41:07+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "6bfe1778-d96e-4bf6-b577-ca5b0b693056",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2021.csv",
+    "uri": {
+     "value": "public://stats/2023-03/Crimes_and_Clearances_with_Arson-1985-2021.csv",
+     "url": "/sites/default/files/stats/2023-03/Crimes_and_Clearances_with_Arson-1985-2021.csv"
+    },
+    "created": "2023-03-02T21:12:58+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "efd7ad36-c395-4dcf-9e73-406d46dd0169",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2022_by month.csv",
+    "uri": {
+     "value": "public://dataset/2023-06/Crimes_and_Clearances_with_Arson-1985-2022_by month.csv",
+     "url": "/sites/default/files/dataset/2023-06/Crimes_and_Clearances_with_Arson-1985-2022_by%20month.csv"
+    },
+    "created": "2023-06-30T19:22:48+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "4b7ec661-a079-4651-b1b4-684376855a14",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2022.csv",
+    "uri": {
+     "value": "public://dataset/2023-06/Crimes_and_Clearances_with_Arson-1985-2022.csv",
+     "url": "/sites/default/files/dataset/2023-06/Crimes_and_Clearances_with_Arson-1985-2022.csv"
+    },
+    "created": "2023-06-30T19:22:48+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "b6a2c621-6199-4a84-b2ed-92e6eaff3ffb",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2023.csv",
+    "uri": {
+     "value": "public://dataset/2024-07/Crimes_and_Clearances_with_Arson-1985-2023.csv",
+     "url": "/sites/default/files/dataset/2024-07/Crimes_and_Clearances_with_Arson-1985-2023.csv"
+    },
+    "created": "2024-07-01T16:59:24+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "1e99ebd5-1ee8-455f-90e8-688e2ac294d3",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2023_by month.csv",
+    "uri": {
+     "value": "public://dataset/2024-07/Crimes_and_Clearances_with_Arson-1985-2023_by month.csv",
+     "url": "/sites/default/files/dataset/2024-07/Crimes_and_Clearances_with_Arson-1985-2023_by%20month.csv"
+    },
+    "created": "2024-07-01T16:59:35+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "9db2c354-9ed6-440f-aa48-18984f983faf",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2024.csv",
+    "uri": {
+     "value": "public://dataset/2025-07/Crimes_and_Clearances_with_Arson-1985-2024.csv",
+     "url": "/sites/default/files/dataset/2025-07/Crimes_and_Clearances_with_Arson-1985-2024.csv"
+    },
+    "created": "2025-07-01T17:41:52+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "0ef08ef2-f331-43f2-b598-3dc390ed0a45",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2024_by month.csv",
+    "uri": {
+     "value": "public://dataset/2025-07/Crimes_and_Clearances_with_Arson-1985-2024_by month.csv",
+     "url": "/sites/default/files/dataset/2025-07/Crimes_and_Clearances_with_Arson-1985-2024_by%20month.csv"
+    },
+    "created": "2025-07-01T17:41:52+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "366f0c45-9942-47e6-a249-f4ad87863e6e",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2025.csv",
+    "uri": {
+     "value": "public://dataset/2026-07/Crimes_and_Clearances_with_Arson-1985-2025.csv",
+     "url": "/sites/default/files/dataset/2026-07/Crimes_and_Clearances_with_Arson-1985-2025.csv"
+    },
+    "created": "2026-07-01T17:36:36+00:00",
+    "status": true
+   }
+  },
+  {
+   "type": "file--file",
+   "id": "5eb397df-72c4-4e41-90c9-67b8c019924a",
+   "attributes": {
+    "filename": "Crimes_and_Clearances_with_Arson-1985-2025_by month.csv",
+    "uri": {
+     "value": "public://dataset/2026-07/Crimes_and_Clearances_with_Arson-1985-2025_by month.csv",
+     "url": "/sites/default/files/dataset/2026-07/Crimes_and_Clearances_with_Arson-1985-2025_by%20month.csv"
+    },
+    "created": "2026-07-01T17:38:33+00:00",
+    "status": true
+   }
+  }
+ ]
+}
