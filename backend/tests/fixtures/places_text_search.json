@@ -1,0 +1,23 @@
+{
+ "_comment": "Synthetic response following the documented Places API (New) searchText shape; not real data.",
+ "places": [
+  {
+   "id": "SYNTHETIC_FAR_TWIN",
+   "displayName": {"text": "Example Gardens Apartments", "languageCode": "en"},
+   "formattedAddress": "1200 Example Ave, Othertown, CA 94000, USA",
+   "location": {"latitude": 37.3736, "longitude": -122.03}
+  },
+  {
+   "id": "SYNTHETIC_NEIGHBOR",
+   "displayName": {"text": "Sunnyvale Self Storage", "languageCode": "en"},
+   "formattedAddress": "1210 Example Ave, Sunnyvale, CA 94086, USA",
+   "location": {"latitude": 37.3703, "longitude": -122.0302}
+  },
+  {
+   "id": "SYNTHETIC_MATCH",
+   "displayName": {"text": "Example Gardens", "languageCode": "en"},
+   "formattedAddress": "1200 Example Ave, Sunnyvale, CA 94086, USA",
+   "location": {"latitude": 37.3701, "longitude": -122.0301}
+  }
+ ]
+}
