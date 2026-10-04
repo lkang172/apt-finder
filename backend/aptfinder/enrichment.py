@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from aptfinder.collectors.google_places import GooglePlacesClient, GooglePlacesError, PropertyQuery
+from aptfinder.api_budget import PLACE_DETAILS_ENTERPRISE_ATMOSPHERE, TEXT_SEARCH_PRO, BudgetExhausted, reserve_call
+from aptfinder.collectors.google_places import GooglePlacesClient, GooglePlacesError, PlaceMatch, PropertyQuery
 from aptfinder.config import Settings
 from aptfinder.db.models import CommuteResult, Evidence, GooglePlaceMatch, Property
 from aptfinder.http import FetchError, PoliteClient
@@ -176,7 +177,16 @@ def google_lookup_due(session: Session, prop: Property, settings: Settings, now:
     return now - row.checked_at > timedelta(days=settings.google_refresh_days)
 
 
+def _stored_match(row: GooglePlaceMatch, prop: Property) -> PlaceMatch:
+    return PlaceMatch(
+        place_id=row.place_id, display_name=row.display_name or prop.name, formatted_address=row.formatted_address,
+        lat=prop.lat, lon=prop.lon, distance_meters=row.distance_meters or 0.0,
+        street_number_matches=row.match_confidence == "exact", name_overlap=0.0, match_confidence=row.match_confidence or "probable",
+    )
+
+
 def collect_google_reviews(session: Session, settings: Settings, props: list[Property], now: datetime, note: Note, client_factory=GooglePlacesClient) -> int:
+    """Every request is pre-registered against a monthly budget capped below Google's free usage."""
     if not settings.google_maps_api_key:
         return 0
     due = [p for p in props if google_lookup_due(session, p, settings, now)]
@@ -186,17 +196,27 @@ def collect_google_reviews(session: Session, settings: Settings, props: list[Pro
             if prop.lat is None or prop.lon is None:
                 _record_match(session, prop, "no_match", now, "No coordinates to match a Google Maps place against")
                 continue
+            existing = session.get(GooglePlaceMatch, prop.id)
             try:
-                result = places.collect(PropertyQuery(prop.name, prop.street_address, prop.city, prop.lat, prop.lon))
+                if existing is not None and existing.status == "ok" and existing.place_id:
+                    match = _stored_match(existing, prop)
+                else:
+                    reserve_call(session, TEXT_SEARCH_PRO, settings.google_text_search_monthly_budget, now)
+                    match = places.find_place(PropertyQuery(prop.name, prop.street_address, prop.city, prop.lat, prop.lon))
+                    if match is None:
+                        _record_match(session, prop, "no_match", now, "No Google Maps place within 150 m matched this property's name and address")
+                        session.commit()
+                        continue
+                reserve_call(session, PLACE_DETAILS_ENTERPRISE_ATMOSPHERE, settings.google_details_monthly_budget, now)
+                result = places.fetch_reviews(match)
+            except BudgetExhausted as exc:
+                note("google_places", f"Stopped to stay within Google's free usage: {exc}")
+                break
             except GooglePlacesError as exc:
                 if exc.is_fatal:
                     note("google_places", f"Stopped Google Places collection: {exc}")
                     break
                 _record_match(session, prop, "error", now, str(exc))
-                session.commit()
-                continue
-            if result is None:
-                _record_match(session, prop, "no_match", now, "No Google Maps place within 150 m matched this property's name and address")
                 session.commit()
                 continue
             page_url = result.summary.reviews_url if result.summary and result.summary.reviews_url else result.source_url

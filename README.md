@@ -46,13 +46,25 @@ AI summary of all reviews ("Summarized with Gemini"), and up to 5 review texts. 
 
 1. In the [Google Cloud console](https://console.cloud.google.com/), create a project and attach a
    billing account (required even for free-tier use).
-2. Enable **Places API (New)**. Optionally enable **Routes API** to get rush-hour commute estimates.
-3. Create an API key (APIs & Services → Credentials) and restrict it to those APIs.
+2. Enable **Places API (New)** only.
+3. Create an API key (APIs & Services → Credentials) and restrict it to Places API (New).
 4. Add it to `.env` at the repo root: `APTFINDER_GOOGLE_MAPS_API_KEY=your-key`
 5. Run `uv run python -m aptfinder run --skip-collection` (or a full run).
 
-Each property costs one Text Search and one Place Details request; Google data is refreshed at most
-weekly (`APTFINDER_GOOGLE_REFRESH_DAYS`), which keeps typical use inside Google's monthly free usage.
+**Free-tier guard.** The app never knowingly exceeds Google's free monthly usage:
+
+| Call | Billed as | Google free calls / month | App budget / month |
+| --- | --- | ---: | ---: |
+| Find the place (Text Search: id, name, address, location) | Text Search Pro | 5,000 | 2,000 |
+| Rating, count, reviews, review summary (Place Details) | Place Details Enterprise + Atmosphere | 1,000 | 800 |
+
+Every call is recorded in the `api_usage` table *before* it is sent (failed calls count too), per calendar
+month in Pacific Time, and refused once the budget is reached; configured budgets above the free caps are
+clamped to them. The place ID found by the first search is reused, so refreshes cost one Place Details
+call per property, and each property is refreshed at most every 30 days (`APTFINDER_GOOGLE_REFRESH_DAYS`).
+The Routes API is never called unless `APTFINDER_GOOGLE_ROUTES_ENABLED=true`. The ledger only sees this
+app's calls, so for a hard guarantee also set daily request quotas for Places API (New) in the Cloud
+console (APIs & Services → Places API (New) → Quotas).
 
 Configuration lives in environment variables prefixed with `APTFINDER_` (or a `.env` file at the repo
 root). See `backend/aptfinder/config.py`. Common ones:
@@ -233,7 +245,8 @@ open a documented Google Maps directions URL and are not presented as evidence.
   verified reviews, which are sparse (often zero to a few per property, and some come from people who
   toured rather than lived there). Most noise, management, pest, and safety categories will honestly
   read N/A. Adding a Google Maps key enables Google ratings and up to 5 reviews per property.
-- **No rush-hour data** without a traffic-aware routing key; commute scores use free-flow time.
+- **No rush-hour data.** Commute uses free-flow driving time; the optional Google Routes integration is
+  disabled by default to avoid paid usage.
 - **City-level crime data** cannot distinguish neighborhoods within large cities such as San Jose.
 - **Redfin is challenge-gated.** Its bot protection (AWS WAF) started challenging plain requests mid-run.
   Solving that challenge would mean circumventing anti-bot measures, so Redfin is effectively a
@@ -245,7 +258,7 @@ open a documented Google Maps directions URL and are not presented as evidence.
 
 ## APIs that can be added later
 
-- **Google Routes API**: traffic-aware AM/PM estimates (implemented, activated by key).
+- **Google Routes API**: traffic-aware AM/PM estimates (implemented, off unless `APTFINDER_GOOGLE_ROUTES_ENABLED=true`).
 - **Google Places API**: ratings and review excerpts (implemented, activated by key).
 - **Yelp Fusion**, **RentCast**, or licensed listing feeds: additional review and listing coverage
   through new collectors that emit the same normalized records.

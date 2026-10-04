@@ -259,7 +259,7 @@ def test_route_many_without_key_uses_osrm_only(tmp_path):
     assert client.min_intervals["router.project-osrm.org"] == config.osrm_min_interval_s
 
 
-def test_route_many_with_key_uses_google_provider(tmp_path, monkeypatch):
+def test_route_many_uses_google_only_when_explicitly_enabled(tmp_path, monkeypatch):
     seen: list[httpx.Request] = []
     transport = httpx.MockTransport(google_handler([route_json(7860, "1500s", "690s")], seen))
     keys: list[str] = []
@@ -270,7 +270,7 @@ def test_route_many_with_key_uses_google_provider(tmp_path, monkeypatch):
 
     monkeypatch.setattr(service, "GoogleRoutesProvider", provider_with_mock_transport)
     client = make_client(tmp_path, lambda request: pytest.fail("OSRM must not be called"))
-    config = settings(tmp_path, key=API_KEY)
+    config = settings(tmp_path, key=API_KEY).model_copy(update={"google_routes_enabled": True})
     results = route_many({"home": ORIGINS["sunnyvale"]}, config.office, config, client)
     assert keys == [API_KEY]
     assert results["home"].provider == "google_routes"

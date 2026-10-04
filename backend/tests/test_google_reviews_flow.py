@@ -29,6 +29,7 @@ MAPS_URL = "https://maps.google.com/?cid=123"
 def fake_factory(rating: float, count: int, texts: list[str], summary: str | None):
     class FakePlaces:
         calls = 0
+        searches = 0
 
         def __init__(self, api_key):
             assert api_key == "test-key"
@@ -39,10 +40,13 @@ def fake_factory(rating: float, count: int, texts: list[str], summary: str | Non
         def __exit__(self, *exc):
             return None
 
-        def collect(self, query):
+        def find_place(self, query):
+            FakePlaces.searches += 1
+            return PlaceMatch("place-1", query.name, "1055 Manet Dr, Sunnyvale, CA", query.lat, query.lon, 12.0, True, 1.0, "exact")
+
+        def fetch_reviews(self, match):
             FakePlaces.calls += 1
             now = utcnow()
-            match = PlaceMatch("place-1", query.name, "1055 Manet Dr, Sunnyvale, CA", query.lat, query.lon, 12.0, True, 1.0, "exact")
             reviews = [
                 CollectedReview(f"r{i}", f"Reviewer {i}", 1.0, now - timedelta(days=30 * (i + 1)), text, review_url=f"{MAPS_URL}&r={i}")
                 for i, text in enumerate(texts)
@@ -114,8 +118,9 @@ def test_lookup_is_not_repeated_within_refresh_window(central_park):
         collect_google_reviews(session, KEYED, [prop], utcnow(), lambda s, m: None, client_factory=factory)
         collect_google_reviews(session, KEYED, [prop], utcnow(), lambda s, m: None, client_factory=factory)
         assert factory.calls == 1
-        collect_google_reviews(session, KEYED, [prop], utcnow() + timedelta(days=8), lambda s, m: None, client_factory=factory)
+        collect_google_reviews(session, KEYED, [prop], utcnow() + timedelta(days=31), lambda s, m: None, client_factory=factory)
         assert factory.calls == 2
+        assert factory.searches == 1
 
 
 def test_api_exposes_google_brief(central_park, monkeypatch):
@@ -153,7 +158,8 @@ def test_no_match_is_recorded_not_treated_as_no_reviews(central_park):
         def __init__(self, key): ...
         def __enter__(self): return self
         def __exit__(self, *exc): return None
-        def collect(self, query): return None
+        def find_place(self, query): return None
+        def fetch_reviews(self, match): raise AssertionError("details must not be fetched without a match")
 
     with session_scope() as session:
         prop = session.get(Property, central_park)
@@ -161,3 +167,72 @@ def test_no_match_is_recorded_not_treated_as_no_reviews(central_park):
         row = session.get(GooglePlaceMatch, prop.id)
         assert row.status == "no_match" and "150 m" in row.reason
         assert not session.scalars(select(Evidence).where(Evidence.source_id == "google_places")).all()
+
+
+def test_budget_exhaustion_stops_before_any_extra_request(central_park):
+    from aptfinder.api_budget import PLACE_DETAILS_ENTERPRISE_ATMOSPHERE, calls_this_period
+
+    tight = Settings(_env_file=None, google_maps_api_key="test-key", google_details_monthly_budget=0)
+    factory = fake_factory(4.1, 33, COCKROACH_TEXTS[:1], None)
+    notes = []
+    with session_scope() as session:
+        prop = session.get(Property, central_park)
+        assert collect_google_reviews(session, tight, [prop], utcnow(), lambda s, m: notes.append(m), client_factory=factory) == 0
+        assert factory.calls == 0
+        assert calls_this_period(session, PLACE_DETAILS_ENTERPRISE_ATMOSPHERE, utcnow()) == 0
+    assert any("free usage" in n for n in notes)
+
+
+def test_every_call_is_counted_before_it_is_made(central_park):
+    from aptfinder.api_budget import PLACE_DETAILS_ENTERPRISE_ATMOSPHERE, TEXT_SEARCH_PRO, calls_this_period
+
+    factory = fake_factory(4.1, 33, COCKROACH_TEXTS[:1], None)
+    with session_scope() as session:
+        prop = session.get(Property, central_park)
+        collect_google_reviews(session, KEYED, [prop], utcnow(), lambda s, m: None, client_factory=factory)
+        assert calls_this_period(session, TEXT_SEARCH_PRO, utcnow()) == 1
+        assert calls_this_period(session, PLACE_DETAILS_ENTERPRISE_ATMOSPHERE, utcnow()) == 1
+
+
+def test_configured_budget_can_never_exceed_free_cap():
+    from aptfinder.api_budget import FREE_MONTHLY_CAPS, PLACE_DETAILS_ENTERPRISE_ATMOSPHERE, TEXT_SEARCH_PRO, effective_budget
+
+    assert effective_budget(PLACE_DETAILS_ENTERPRISE_ATMOSPHERE, 10**9) == FREE_MONTHLY_CAPS[PLACE_DETAILS_ENTERPRISE_ATMOSPHERE] == 1000
+    assert effective_budget(TEXT_SEARCH_PRO, 10**9) == 5000
+    assert effective_budget(TEXT_SEARCH_PRO, -5) == 0
+
+
+def test_billing_period_uses_pacific_time():
+    from aptfinder.api_budget import billing_period
+
+    assert billing_period(datetime(2026, 11, 1, 5, 0, tzinfo=UTC)) == "2026-10"
+    assert billing_period(datetime(2026, 11, 1, 9, 0, tzinfo=UTC)) == "2026-11"
+
+
+def test_routes_api_is_never_used_unless_explicitly_enabled(monkeypatch):
+    from aptfinder.config import Office
+    from aptfinder.routing import service
+
+    used = []
+
+    class FakeGoogleRoutes:
+        def __init__(self, key):
+            used.append(key)
+
+    class FakeOsrm:
+        def __init__(self, client):
+            ...
+
+        def route_many(self, origins, destination):
+            from aptfinder.routing.base import RouteBatch
+
+            return RouteBatch()
+
+    class FakeClient:
+        min_intervals = {}
+
+    monkeypatch.setattr(service, "GoogleRoutesProvider", FakeGoogleRoutes)
+    monkeypatch.setattr(service, "OsrmProvider", FakeOsrm)
+    office = Office("o", "a", 37.4, -122.0, "x")
+    service.route_many({1: (37.3, -122.0)}, office, KEYED, FakeClient())
+    assert used == []

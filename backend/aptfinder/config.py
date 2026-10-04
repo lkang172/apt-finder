@@ -90,7 +90,10 @@ class Settings(BaseSettings):
     osrm_min_interval_s: float = 1.5
 
     google_maps_api_key: str = ""
-    google_refresh_days: int = 7
+    google_refresh_days: int = 30
+    google_text_search_monthly_budget: int = 2000
+    google_details_monthly_budget: int = 800
+    google_routes_enabled: bool = False
 
     @property
     def resolved_database_url(self) -> str:

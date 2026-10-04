@@ -22,7 +22,7 @@ def route_many[K: Hashable](
     client.min_intervals.setdefault(OSRM_HOST, settings.osrm_min_interval_s)
     osrm = OsrmProvider(client)
 
-    if traffic_provider is None and settings.google_maps_api_key:
+    if traffic_provider is None and settings.google_routes_enabled and settings.google_maps_api_key:
         traffic_provider = GoogleRoutesProvider(settings.google_maps_api_key)
     if traffic_provider is None:
         batch = osrm.route_many(origins, destination)

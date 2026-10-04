@@ -245,6 +245,16 @@ class RatingSummary(Base):
     evidence_id: Mapped[str | None] = mapped_column(ForeignKey("evidence.id"))
 
 
+class ApiUsage(Base):
+    """Paid-API calls per billing period, recorded before each request so free-tier caps are never crossed."""
+
+    __tablename__ = "api_usage"
+
+    period: Mapped[str] = mapped_column(String(7), primary_key=True)
+    sku: Mapped[str] = mapped_column(String(64), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class GooglePlaceMatch(Base):
     """Outcome of the latest Google Maps lookup for a property, including failures to match."""
 
