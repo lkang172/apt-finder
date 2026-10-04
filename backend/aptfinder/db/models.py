@@ -153,8 +153,8 @@ class PriceObservation(Base):
     source_updated_at: Mapped[datetime | None]
     base_rent_min: Mapped[int | None]
     base_rent_max: Mapped[int | None]
-    total_monthly: Mapped[int | None]
-    required_fees_monthly: Mapped[int | None]
+    total_monthly: Mapped[float | None] = mapped_column(Float)
+    required_fees_monthly: Mapped[float | None] = mapped_column(Float)
     lease_term_months: Mapped[int | None]
     available_on: Mapped[str | None] = mapped_column(String(10))
     availability: Mapped[str | None] = mapped_column(String(32))
