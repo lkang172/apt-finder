@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { ApiErrorState, tryLoad } from "@/components/ApiErrorState";
 import { EligibilityCallout } from "@/components/EligibilityNotice";
 import { CommutePanel } from "@/components/property/CommutePanel";
+import { GoogleReviewsPanel } from "@/components/property/GoogleReviewsPanel";
 import { Limitations } from "@/components/property/Limitations";
 import { ListingFacts } from "@/components/property/ListingFacts";
 import { OverallBreakdown } from "@/components/property/OverallBreakdown";
@@ -19,7 +20,7 @@ import { Section } from "@/components/ui/Section";
 import { api } from "@/lib/api";
 import { buildEvidenceIndex, buildThemeLabels } from "@/lib/evidence";
 import { pluralize } from "@/lib/format";
-import { hasNoReviews } from "@/lib/presentation";
+import { sourceNameMap, sourcesLabel } from "@/lib/presentation";
 
 const isPropertyId = (id: string) => /^\d+$/.test(id);
 
@@ -58,13 +59,16 @@ export default async function PropertyPage({ params }: PageProps<"/properties/[i
   const evidenceIndex = buildEvidenceIndex(detail);
   const themeLabels = buildThemeLabels(detail);
   const qualifyingUnits = detail.units.filter((unit) => unit.qualifies).length;
+  const sourceNames = sourceNameMap(meta.data);
+  const noReviewTexts = detail.review_intelligence.reviews.length === 0;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
       {backLink}
-      <PropertyHeader detail={detail} />
+      <PropertyHeader detail={detail} sourceNames={sourceNames} />
       <EligibilityCallout notes={detail.eligibility_notes} />
       <PriceAlerts detail={detail} />
+      <GoogleReviewsPanel google={detail.google} />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <aside className="space-y-5 lg:sticky lg:top-4 lg:order-last lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto">
@@ -100,7 +104,7 @@ export default async function PropertyPage({ params }: PageProps<"/properties/[i
               assessments={detail.assessments}
               officialUrl={officialUrl}
               themeLabels={themeLabels}
-              noReviews={hasNoReviews(detail.review)}
+              noReviewTexts={noReviewTexts}
             />
           </Section>
 
@@ -110,7 +114,12 @@ export default async function PropertyPage({ params }: PageProps<"/properties/[i
 
           <Section id="reviews" title="Review intelligence">
             <div className="space-y-5">
-              <ReviewIntelligence detail={detail} evidenceIndex={evidenceIndex} officialUrl={officialUrl} />
+              <ReviewIntelligence
+                detail={detail}
+                evidenceIndex={evidenceIndex}
+                officialUrl={officialUrl}
+                sourceLabel={sourcesLabel(detail.source_ids, sourceNames)}
+              />
               <RatingSummaries summaries={detail.rating_summaries} filter={detail.rating_filter} />
             </div>
           </Section>

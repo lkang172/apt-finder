@@ -1,4 +1,4 @@
-import { CONFIDENCE_RANK } from "./presentation";
+import { CONFIDENCE_RANK, googleRating } from "./presentation";
 import type { Category, Confidence, PropertySummary, UnitType } from "./types";
 
 export type SortDirection = "asc" | "desc";
@@ -46,6 +46,7 @@ export type SortKey =
   | "commute"
   | ScoreFilterCategory
   | "review_rating"
+  | "google_rating"
   | "confidence";
 
 interface SortOption {
@@ -53,6 +54,11 @@ interface SortOption {
   label: string;
   defaultDirection: SortDirection;
   value: (property: PropertySummary) => number | null;
+}
+
+// The rating shown most prominently on a card: Google's when available, otherwise the other sources' average.
+export function primaryRating(property: PropertySummary): number | null {
+  return googleRating(property.google) ?? property.review.average;
 }
 
 export const SORT_OPTIONS: SortOption[] = [
@@ -70,7 +76,8 @@ export const SORT_OPTIONS: SortOption[] = [
     defaultDirection: "desc",
     value: (p) => p.scores.neighborhood_safety.score,
   },
-  { key: "review_rating", label: "Review rating", defaultDirection: "desc", value: (p) => p.review.average },
+  { key: "review_rating", label: "Rating (Google first)", defaultDirection: "desc", value: primaryRating },
+  { key: "google_rating", label: "Google rating", defaultDirection: "desc", value: (p) => googleRating(p.google) },
   { key: "confidence", label: "Overall confidence", defaultDirection: "desc", value: (p) => CONFIDENCE_RANK[p.overall.confidence] },
 ];
 
@@ -128,7 +135,7 @@ export function filterProperties(items: PropertySummary[], filters: BrowseFilter
       ) &&
       (filters.minConfidence === null ||
         CONFIDENCE_RANK[p.overall.confidence] >= CONFIDENCE_RANK[filters.minConfidence]) &&
-      meetsMinimum(p.review.average, filters.minReviewRating) &&
+      meetsMinimum(primaryRating(p), filters.minReviewRating) &&
       (!filters.hideEligibilityRestricted || p.eligibility_notes.length === 0),
   );
 }

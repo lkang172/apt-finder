@@ -1,4 +1,5 @@
-import type { Category, Confidence, EvidenceItem, Region, ReviewBrief, RunStatus, UnitType } from "./types";
+import { humanize } from "./format";
+import type { Category, Confidence, EvidenceItem, GoogleReviewsBrief, Meta, Region, ReviewBrief, RunStatus, UnitType } from "./types";
 
 export const NA_TEXT = "N/A — insufficient evidence";
 export const URL_UNAVAILABLE_TEXT = "Source URL unavailable";
@@ -73,6 +74,7 @@ export function scoreTone(score: number | null): Tone {
 
 const EVIDENCE_KIND_LABEL: Record<EvidenceItem["kind"], string> = {
   review: "Review",
+  review_summary: "Google AI summary",
   listing_fact: "Listing fact",
   price: "Price",
   fee: "Fee",
@@ -106,6 +108,8 @@ function evidenceActionLabel(item: EvidenceItem, officialUrl: string | null): st
       return "View Safety Source";
     case "commute_fact":
       return "View Commute Source";
+    case "review_summary":
+      return "View on Google Maps";
     default:
       return "View Source";
   }
@@ -126,4 +130,31 @@ export function evidenceSourceLink(item: EvidenceItem, officialUrl: string | nul
 
 export function hasNoReviews(review: ReviewBrief): boolean {
   return review.status === "no_reviews" || review.count === 0;
+}
+
+export function ratingTone(rating: number): Tone {
+  if (rating < 3) return "danger";
+  if (rating < 4) return "warning";
+  return "positive";
+}
+
+export function googleRating(google: GoogleReviewsBrief): number | null {
+  return google.status === "ok" ? google.rating : null;
+}
+
+export function isUncertainGoogleMatch(google: GoogleReviewsBrief): boolean {
+  return google.status === "ok" && (google.match_confidence === "probable" || google.match_confidence === "weak");
+}
+
+export const UNCERTAIN_MATCH_TEXT = "Matched by address/location — verify this is the right place";
+
+export type SourceNames = Record<string, string>;
+
+export function sourceNameMap(meta: Meta | null): SourceNames {
+  return Object.fromEntries((meta?.sources ?? []).map((source) => [source.id, source.name]));
+}
+
+export function sourcesLabel(sourceIds: string[], names: SourceNames): string {
+  const labels = sourceIds.map((id) => names[id] ?? humanize(id));
+  return labels.length > 0 ? labels.join(", ") : "Other sources";
 }

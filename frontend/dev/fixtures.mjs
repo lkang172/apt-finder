@@ -10,6 +10,7 @@ const SOURCES = {
   reviews: { id: "example_reviews", name: "Example Reviews (synthetic)" },
   osrm: { id: "osrm", name: "OSRM routing (synthetic)" },
   crime: { id: "city_open_data", name: "Example City Open Data (synthetic)" },
+  google: { id: "google_places", name: "Google Maps (synthetic)" },
 };
 
 const COLLECTED = "2026-10-03T18:30:00Z";
@@ -197,6 +198,37 @@ function commuteDetail(slug, brief, overrides = {}) {
 
 const RUSH_UNAVAILABLE = "Unavailable — traffic-aware routing API required";
 
+function googleOk(slug, { rating, count, match = "exact", summary = null }) {
+  return {
+    status: "ok",
+    rating,
+    count,
+    maps_url: `https://maps.example.com/place/${slug}`,
+    summary: summary && `[Synthetic] ${summary}`,
+    summary_disclosure: summary ? "Summarized with Gemini" : null,
+    summary_flag_url: summary ? `https://maps.example.com/place/${slug}/report-summary` : null,
+    match_confidence: match,
+    observed_at: COLLECTED,
+    explanation: `${rating}/5 from ${count} Google reviews`,
+  };
+}
+
+function googleMissing(status, explanation) {
+  return {
+    status,
+    rating: null,
+    count: null,
+    maps_url: null,
+    summary: null,
+    summary_disclosure: null,
+    summary_flag_url: null,
+    match_confidence: null,
+    observed_at: null,
+    explanation,
+  };
+}
+
+
 function emptyIntel(confidence, summary) {
   return { praised: [], criticized: [], recent_trends: [], outliers: [], quality: { confidence, summary, details: {} }, reviews: [] };
 }
@@ -206,7 +238,7 @@ function summaryOf(detail) {
     "id", "name", "city", "region", "street_address", "lat", "lon", "image_url", "image_source_name", "unit_types",
     "rent_min", "rent_max", "est_monthly_total_min", "has_unknown_required_costs", "has_promotion", "sqft_min", "sqft_max",
     "price_status", "last_verified_at", "commute", "review", "overall", "scores", "strongest_positive", "strongest_concern",
-    "eligibility_notes", "source_ids",
+    "eligibility_notes", "google", "source_ids",
   ];
   return Object.fromEntries(keys.map((k) => [k, detail[k]]));
 }
@@ -315,6 +347,7 @@ function propertyA(imageBase) {
     strongest_positive: { text: "Fast, responsive maintenance", category: "management", claim_id: 106 },
     strongest_concern: { text: "Thin walls between units", category: "noise", claim_id: 102 },
     eligibility_notes: [],
+    google: googleOk(slug, { rating: 4.4, count: 132, summary: "Residents frequently praise responsive maintenance and friendly staff. Some mention thin walls and limited guest parking." }),
     source_ids: [SOURCES.listings.id, SOURCES.official.id, SOURCES.reviews.id],
     listings: [
       { source_id: SOURCES.listings.id, source_name: SOURCES.listings.name, url: `https://listings.example.com/${slug}`, name: "Sample Property A Apartments", last_seen_at: COLLECTED },
@@ -375,6 +408,25 @@ function propertyA(imageBase) {
 
 function propertyB() {
   const slug = "sample-property-b";
+  const googleSummary = {
+    id: `ev-${slug}-google-summary`,
+    kind: "review_summary",
+    source_id: SOURCES.google.id,
+    source_name: SOURCES.google.name,
+    title: "Google review summary",
+    content:
+      "[Synthetic] Many reviewers report recurring cockroach problems in kitchens and hallways, slow pest control, and unresponsive management.",
+    published_at: null,
+    collected_at: COLLECTED,
+    source_url: `https://maps.example.com/place/${slug}`,
+    source_page_url: null,
+    is_derived: false,
+    categories: ["pests", "management"],
+    rating: null,
+    reviewer: null,
+    age_label: null,
+    data: { summary_disclosure: "Summarized with Gemini" },
+  };
   const crime = fact(slug, 1, {
     kind: "safety_fact",
     title: "Reported property crime (2025)",
@@ -389,7 +441,9 @@ function propertyB() {
     }),
     insufficient("noise", "No reviews found — noise can't be assessed."),
     insufficient("management", "No reviews found — management can't be assessed."),
-    insufficient("pests", "Pest-related evidence is insufficient to make a reliable assessment."),
+    assessment("pests", null, "insufficient", "Google's AI summary mentions recurring cockroach complaints, but no individual review texts were available to score pests.", {
+      claims: [claim(203, "Google's review summary reports recurring cockroach problems.", "negative", "cockroaches", [googleSummary])],
+    }),
     insufficient("building_safety"),
     assessment("neighborhood_safety", 7.0, "medium", "City-level property crime rate is slightly below the county reference.", {
       claims: [claim(202, "City property crime rate is slightly below the county reference.", "positive", "crime_rate", [crime])],
@@ -420,8 +474,9 @@ function propertyB() {
     commute: { distance_miles: 6.3, free_flow_minutes: 14, am_rush_minutes: null, pm_rush_minutes: null, rush_status: RUSH_UNAVAILABLE },
     review: { average: null, count: 0, status: "no_reviews", explanation: "No reviews found" },
     strongest_positive: { text: "Short commute (about 14 min, no traffic)", category: "commute", claim_id: 201 },
-    strongest_concern: null,
+    strongest_concern: { text: "Google summary reports recurring cockroaches", category: "pests", claim_id: 203 },
     eligibility_notes: [],
+    google: googleOk(slug, { rating: 1.6, count: 47, summary: "Many reviewers report recurring cockroach problems in kitchens and hallways, slow pest control, and unresponsive management. A few mention the location is convenient." }),
     source_ids: [SOURCES.listings.id, SOURCES.rentals.id, SOURCES.official.id],
     listings: [
       { source_id: SOURCES.listings.id, source_name: SOURCES.listings.name, url: `https://listings.example.com/${slug}`, name: "Sample Property B", last_seen_at: "2026-10-03T17:50:00Z" },
@@ -456,7 +511,7 @@ function propertyB() {
       "No reviews found: noise, management, and pests could not be scored.",
       "Only 2 of 7 categories had enough evidence.",
     ]),
-    review_intelligence: emptyIntel("insufficient", "No reviews were found on any source we checked."),
+    review_intelligence: emptyIntel("insufficient", "No individual review texts were available from any source; only Google's overall rating and AI summary were returned."),
     rating_summaries: [],
     rating_filter: { status: "no_reviews", explanation: "No reviews found, so the low-rating filter does not apply." },
     facts: [
@@ -502,6 +557,7 @@ function propertyC() {
     strongest_positive: null,
     strongest_concern: null,
     eligibility_notes: [],
+    google: googleMissing("no_match", "No confident Google Maps match for this address — Google reviews not shown"),
     source_ids: [SOURCES.rentals.id],
     listings: [{ source_id: SOURCES.rentals.id, source_name: SOURCES.rentals.name, url: `https://rentals.example.com/${slug}`, name: null, last_seen_at: STALE_COLLECTED }],
     official_website: null,
@@ -585,6 +641,7 @@ function propertyD(imageBase) {
     strongest_positive: { text: "Recent reviews praise new management", category: "management", claim_id: 403 },
     strongest_concern: { text: "Caltrain horn audible at night", category: "noise", claim_id: 402 },
     eligibility_notes: [],
+    google: googleOk(slug, { rating: 3.4, count: 18, match: "weak", summary: "Reviewers are split: some praise the new management and quick repairs, while others mention train noise at night and parking shortages." }),
     source_ids: [SOURCES.official.id, SOURCES.reviews.id, SOURCES.rentals.id],
     listings: [{ source_id: SOURCES.rentals.id, source_name: SOURCES.rentals.name, url: `https://rentals.example.com/${slug}`, name: "Sample Property D Studios", last_seen_at: "2026-10-03T16:20:00Z" }],
     official_website: { url: "https://www.example.com/sample-property-d", source_id: SOURCES.official.id, source_name: SOURCES.official.name, evidence_id: null },
@@ -624,7 +681,7 @@ function propertyD(imageBase) {
   return detail;
 }
 
-function simpleProperty({ id, name, city, region, lat, lon, image, rent, total, sqft, commute, scores, review: reviewBrief, unknownCosts = false, eligibility = [] }) {
+function simpleProperty({ id, name, city, region, lat, lon, image, rent, total, sqft, commute, scores, review: reviewBrief, google, unknownCosts = false, eligibility = [] }) {
   const slug = name.toLowerCase().replace(/\s+/g, "-");
   const assessments = CATEGORIES.map((c) =>
     scores[c] === null || scores[c] === undefined
@@ -659,6 +716,7 @@ function simpleProperty({ id, name, city, region, lat, lon, image, rent, total, 
     strongest_positive: null,
     strongest_concern: null,
     eligibility_notes: eligibility,
+    google,
     source_ids: [SOURCES.listings.id],
     listings: [{ source_id: SOURCES.listings.id, source_name: SOURCES.listings.name, url: `https://listings.example.com/${slug}`, name, last_seen_at: COLLECTED }],
     official_website: null,
@@ -701,6 +759,7 @@ export function buildFixtures(imageBase) {
       sqft: [700, 700],
       unknownCosts: true,
       eligibility: ["Income-restricted housing"],
+      google: googleMissing("not_configured", "Google reviews not checked — API key not configured"),
       commute: { distance_miles: 14.5, free_flow_minutes: 22, am_rush_minutes: null, pm_rush_minutes: null, rush_status: RUSH_UNAVAILABLE },
       scores: { commute: [6.1, "high"], noise: [7.2, "medium"], management: [6.4, "medium"], pests: null, building_safety: [7.0, "low"], neighborhood_safety: [6.8, "medium"], other_issues: [7.1, "low"] },
       review: { average: 3.9, count: 24, status: "ok", explanation: "24 reviews from 2 sources" },
@@ -719,6 +778,7 @@ export function buildFixtures(imageBase) {
       commute: { distance_miles: 7.9, free_flow_minutes: 15, am_rush_minutes: null, pm_rush_minutes: null, rush_status: RUSH_UNAVAILABLE },
       scores: { commute: [8.2, "high"], noise: [8.6, "high"], management: [8.9, "high"], pests: [8.0, "medium"], building_safety: [8.3, "medium"], neighborhood_safety: [7.9, "medium"], other_issues: [8.1, "medium"] },
       review: { average: 4.5, count: 88, status: "ok", explanation: "88 reviews from 2 sources" },
+      google: googleOk("sample-property-f", { rating: 4.6, count: 210, match: "probable" }),
     }),
     simpleProperty({
       id: 7,
@@ -732,6 +792,7 @@ export function buildFixtures(imageBase) {
       total: 2600,
       sqft: [540, 560],
       eligibility: ["Senior Housing"],
+      google: googleMissing("not_checked", "Google reviews not checked yet for this property"),
       commute: { distance_miles: 11.2, free_flow_minutes: 19, am_rush_minutes: null, pm_rush_minutes: null, rush_status: RUSH_UNAVAILABLE },
       scores: { commute: [7.0, "high"], noise: null, management: null, pests: null, building_safety: null, neighborhood_safety: [7.2, "medium"], other_issues: null },
       review: { average: null, count: 0, status: "no_reviews", explanation: "No reviews found" },

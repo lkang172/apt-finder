@@ -20,18 +20,30 @@ export const TONE_PANEL_CLASS: Record<Tone, string> = {
   accent: "border-accent/30 bg-accent-soft",
 };
 
+export const TONE_TEXT_CLASS: Record<Tone, string> = {
+  positive: "text-emerald-700 dark:text-emerald-300",
+  warning: "text-amber-700 dark:text-amber-300",
+  danger: "text-rose-700 dark:text-rose-300",
+  neutral: "text-ink-faint",
+  info: "text-sky-700 dark:text-sky-300",
+  accent: "text-accent",
+};
+
 interface BadgeProps {
   tone?: Tone;
   children: ReactNode;
   className?: string;
   title?: string;
+  wrap?: boolean;
 }
 
-export function Badge({ tone = "neutral", children, className = "", title }: BadgeProps) {
+export function Badge({ tone = "neutral", children, className = "", title, wrap = false }: BadgeProps) {
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONE_BADGE_CLASS[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
+        wrap ? "max-w-full rounded-lg" : "whitespace-nowrap rounded-full"
+      } ${TONE_BADGE_CLASS[tone]} ${className}`}
     >
       {children}
     </span>

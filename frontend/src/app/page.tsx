@@ -4,12 +4,14 @@ import { BrowseView } from "@/components/browse/BrowseView";
 import { RunStatus } from "@/components/browse/RunStatus";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { sourceNameMap } from "@/lib/presentation";
 
 export default async function BrowsePage() {
   await connection();
   const [list, meta] = await Promise.all([tryLoad(api.listProperties), tryLoad(api.getMeta)]);
   const search = meta.data?.search;
   const office = meta.data?.office ?? null;
+  const sourceNames = sourceNameMap(meta.data);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -32,7 +34,13 @@ export default async function BrowsePage() {
       {list.error ? (
         <ApiErrorState error={list.error} />
       ) : (
-        <BrowseView items={list.data.items} total={list.data.total} cities={list.data.cities} office={office} />
+        <BrowseView
+          items={list.data.items}
+          total={list.data.total}
+          cities={list.data.cities}
+          office={office}
+          sourceNames={sourceNames}
+        />
       )}
     </div>
   );

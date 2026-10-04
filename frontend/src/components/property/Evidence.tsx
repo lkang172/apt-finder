@@ -101,7 +101,7 @@ export function ClaimItem({ claim, officialUrl, themeLabels }: ClaimItemProps) {
           <p className="text-sm font-semibold text-ink">{claim.text}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {claim.theme && <Badge>{themeLabel(claim.theme, themeLabels)}</Badge>}
-            {!claim.is_current && <Badge tone="warning">Older evidence — may not reflect current conditions</Badge>}
+            {!claim.is_current && <Badge tone="warning" wrap>Older evidence — may not reflect current conditions</Badge>}
             <span className="text-xs text-ink-faint">{pluralize(claim.evidence.length, "evidence item")}</span>
           </div>
         </div>
@@ -110,7 +110,7 @@ export function ClaimItem({ claim, officialUrl, themeLabels }: ClaimItemProps) {
         {claim.evidence.length > 0 ? (
           <EvidenceList items={claim.evidence} officialUrl={officialUrl} />
         ) : (
-          <Badge tone="danger">No linked evidence — treat this claim as unverified</Badge>
+          <Badge tone="danger" wrap>No linked evidence — treat this claim as unverified</Badge>
         )}
       </div>
     </li>

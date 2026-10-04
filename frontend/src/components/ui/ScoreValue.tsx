@@ -1,14 +1,6 @@
 import { formatScore } from "@/lib/format";
-import { NA_TEXT, scoreTone, type Tone } from "@/lib/presentation";
-
-const SCORE_TEXT_CLASS: Record<Tone, string> = {
-  positive: "text-emerald-700 dark:text-emerald-300",
-  warning: "text-amber-700 dark:text-amber-300",
-  danger: "text-rose-700 dark:text-rose-300",
-  neutral: "text-ink-faint",
-  info: "text-sky-700 dark:text-sky-300",
-  accent: "text-accent",
-};
+import { NA_TEXT, scoreTone } from "@/lib/presentation";
+import { TONE_TEXT_CLASS } from "./Badge";
 
 const SIZE_CLASS = {
   sm: "text-base",
@@ -38,7 +30,7 @@ export function ScoreValue({ score, size = "md", compactNa = false }: ScoreValue
     );
   }
   return (
-    <span className={`font-semibold tabular-nums ${SCORE_TEXT_CLASS[scoreTone(score)]}`}>
+    <span className={`font-semibold tabular-nums ${TONE_TEXT_CLASS[scoreTone(score)]}`}>
       <span className={SIZE_CLASS[size]}>{formatScore(score)}</span>
       <span className="text-sm font-medium text-ink-faint">/10</span>
     </span>

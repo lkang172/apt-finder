@@ -14,6 +14,7 @@ import {
   type SortKey,
 } from "@/lib/browse";
 import { formatMoney, pluralize } from "@/lib/format";
+import type { SourceNames } from "@/lib/presentation";
 import type { Meta, PropertySummary } from "@/lib/types";
 import { FilterBar, type ViewMode } from "./FilterBar";
 import { PropertyCard } from "./PropertyCard";
@@ -29,6 +30,7 @@ interface BrowseViewProps {
   total: number;
   cities: string[];
   office: Meta["office"] | null;
+  sourceNames: SourceNames;
 }
 
 function mapLabel(property: PropertySummary): string {
@@ -37,7 +39,7 @@ function mapLabel(property: PropertySummary): string {
   return "Price N/A";
 }
 
-export function BrowseView({ items, total, cities, office }: BrowseViewProps) {
+export function BrowseView({ items, total, cities, office, sourceNames }: BrowseViewProps) {
   const [filters, setFilters] = useState<BrowseFilters>(EMPTY_FILTERS);
   const [sortKey, setSortKey] = useState<SortKey>("overall");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -94,6 +96,7 @@ export function BrowseView({ items, total, cities, office }: BrowseViewProps) {
             property={property}
             highlighted={property.id === selectedId}
             sortKey={sortKey}
+            sourceNames={sourceNames}
             onHoverChange={setHoveredId}
           />
         </li>

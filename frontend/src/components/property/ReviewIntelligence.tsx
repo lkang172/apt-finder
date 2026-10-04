@@ -16,22 +16,23 @@ interface ReviewIntelligenceProps {
   detail: PropertyDetail;
   evidenceIndex: EvidenceIndex;
   officialUrl: string | null;
+  sourceLabel: string;
 }
 
-export function ReviewIntelligence({ detail, evidenceIndex, officialUrl }: ReviewIntelligenceProps) {
+export function ReviewIntelligence({ detail, evidenceIndex, officialUrl, sourceLabel }: ReviewIntelligenceProps) {
   const { review, review_intelligence: intel } = detail;
-  const noReviews = hasNoReviews(review);
+  const noReviewTexts = intel.reviews.length === 0;
 
   return (
     <div className="space-y-5">
-      <ReviewDataLine review={review} confidence={CONFIDENCE_LABEL[intel.quality.confidence]} />
+      <ReviewDataLine review={review} sourceLabel={sourceLabel} confidence={CONFIDENCE_LABEL[intel.quality.confidence]} />
 
-      {noReviews ? (
+      {noReviewTexts ? (
         <Card>
           <p className="text-sm text-ink-muted">
-            No reviews were found for this property, so noise, management, and pest conditions can&apos;t be assessed. The
-            absence of reviews is not a positive signal — evaluate this property on price, commute, location, and verified
-            listing facts, and look for resident feedback yourself.
+            No review texts were collected for this property, so noise, management, and pest conditions can&apos;t be
+            assessed from reviews. That absence is not a positive signal — check the Google rating above and look for
+            resident feedback yourself.
           </p>
         </Card>
       ) : (
@@ -114,14 +115,14 @@ export function ReviewIntelligence({ detail, evidenceIndex, officialUrl }: Revie
             />
           </div>
         ) : (
-          <p className="mt-2 text-sm text-ink-muted">No reviews found.</p>
+          <p className="mt-2 text-sm text-ink-muted">No individual review texts were collected.</p>
         )}
       </Card>
     </div>
   );
 }
 
-function ReviewDataLine({ review, confidence }: { review: ReviewBrief; confidence: string }) {
+function ReviewDataLine({ review, sourceLabel, confidence }: { review: ReviewBrief; sourceLabel: string; confidence: string }) {
   const reviewData =
     hasNoReviews(review)
       ? "No reviews found"
@@ -131,7 +132,7 @@ function ReviewDataLine({ review, confidence }: { review: ReviewBrief; confidenc
   return (
     <div className="rounded-2xl border border-line bg-surface px-4 py-3 text-sm shadow-sm">
       <p className="text-ink">
-        <span className="text-ink-muted">Review data:</span> <span className="font-semibold">{reviewData}</span>
+        <span className="text-ink-muted">Review data ({sourceLabel}):</span> <span className="font-semibold">{reviewData}</span>
         <span aria-hidden="true" className="px-2 text-ink-faint">
           ·
         </span>

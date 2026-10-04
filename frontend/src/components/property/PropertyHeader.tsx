@@ -1,17 +1,19 @@
 import { EligibilityBadge } from "@/components/EligibilityNotice";
+import { GoogleRatingLine } from "@/components/GoogleRating";
 import { Highlights } from "@/components/Highlights";
 import { PriceStatusBadges } from "@/components/PriceStatusBadges";
 import { PropertyImage } from "@/components/PropertyImage";
+import { ReviewBriefText } from "@/components/ReviewBriefText";
 import { Badge } from "@/components/ui/Badge";
 import { ConfidenceBadge } from "@/components/ui/ConfidenceBadge";
-import { IconPin, IconStar } from "@/components/ui/icons";
+import { IconPin } from "@/components/ui/icons";
 import { ScoreValue } from "@/components/ui/ScoreValue";
 import { Timestamp } from "@/components/ui/Timestamp";
-import { formatRating, formatSqftRange, pluralize } from "@/lib/format";
-import { hasNoReviews, REGION_LABEL, UNIT_TYPE_LABEL } from "@/lib/presentation";
+import { formatSqftRange, pluralize } from "@/lib/format";
+import { REGION_LABEL, sourcesLabel, UNIT_TYPE_LABEL, type SourceNames } from "@/lib/presentation";
 import type { PropertyDetail } from "@/lib/types";
 
-export function PropertyHeader({ detail }: { detail: PropertyDetail }) {
+export function PropertyHeader({ detail, sourceNames }: { detail: PropertyDetail; sourceNames: SourceNames }) {
   const address = [detail.street_address, [detail.city, detail.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const sqft = formatSqftRange(detail.sqft_min, detail.sqft_max);
 
@@ -58,26 +60,16 @@ export function PropertyHeader({ detail }: { detail: PropertyDetail }) {
             <ConfidenceBadge confidence={detail.overall.confidence} className="mt-1" />
           </a>
           <a
-            href="#reviews"
-            className="rounded-2xl border border-line bg-surface p-3 shadow-sm transition hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            href="#google-reviews"
+            className="min-w-0 rounded-2xl border border-line bg-surface p-3 shadow-sm transition hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <span className="block text-xs font-semibold uppercase tracking-wider text-ink-faint">Reviews</span>
-            {hasNoReviews(detail.review) ? (
-              <span className="mt-1 block text-sm font-medium text-ink-muted">No reviews found</span>
-            ) : (
-              <>
-                <span className="mt-0.5 flex items-center gap-1 text-2xl font-semibold tabular-nums text-ink">
-                  <IconStar className="text-lg text-amber-500" />
-                  {detail.review.average === null ? <span className="text-sm text-ink-muted">No reliable average</span> : `${formatRating(detail.review.average)}`}
-                  {detail.review.average !== null && <span className="text-sm font-medium text-ink-faint">/5</span>}
-                </span>
-                <span className="block text-xs text-ink-muted">
-                  {pluralize(detail.review.count, "review")}
-                  {detail.review.status === "insufficient" && " · insufficient evidence"}
-                  {detail.review.status === "conflict" && " · sources disagree"}
-                </span>
-              </>
-            )}
+            <span className="mt-1 block">
+              <GoogleRatingLine google={detail.google} size="compact" linked={false} />
+            </span>
+            <span className="mt-1.5 line-clamp-2 block text-xs text-ink-muted" title={sourcesLabel(detail.source_ids, sourceNames)}>
+              {sourcesLabel(detail.source_ids, sourceNames)}: <ReviewBriefText review={detail.review} />
+            </span>
           </a>
         </div>
 

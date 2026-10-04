@@ -193,7 +193,7 @@ export function FilterBar({
             onChange={(minOverall) => update({ minOverall })}
           />
           <NumberSelect
-            label="Min review rating"
+            label="Min rating (Google when available)"
             value={filters.minReviewRating}
             options={MIN_RATING_OPTIONS}
             format={(rating) => `${rating.toFixed(1)}+ / 5`}

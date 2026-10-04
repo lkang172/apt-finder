@@ -24,10 +24,10 @@ interface ScorecardProps {
   assessments: AssessmentView[];
   officialUrl: string | null;
   themeLabels: ThemeLabels;
-  noReviews: boolean;
+  noReviewTexts: boolean;
 }
 
-export function Scorecard({ assessments, officialUrl, themeLabels, noReviews }: ScorecardProps) {
+export function Scorecard({ assessments, officialUrl, themeLabels, noReviewTexts }: ScorecardProps) {
   const rank = (assessment: AssessmentView) => {
     const position = SCORECARD_ORDER.indexOf(assessment.category);
     return position === -1 ? SCORECARD_ORDER.length : position;
@@ -36,10 +36,10 @@ export function Scorecard({ assessments, officialUrl, themeLabels, noReviews }: 
 
   return (
     <div className="space-y-3">
-      {noReviews && (
+      {noReviewTexts && (
         <p className="rounded-xl border border-line bg-surface-muted px-4 py-3 text-sm text-ink-muted">
-          No reviews were found, so review-based categories (noise, management, pests, and most building issues) can&apos;t
-          be scored. Missing reviews are never treated as a positive signal.
+          No review texts were collected, so review-based categories (noise, management, pests, and most building issues)
+          can&apos;t be scored. Missing reviews are never treated as a positive signal.
         </p>
       )}
       {ordered.map((assessment) => (
@@ -169,7 +169,7 @@ function AssessmentRow({
           </p>
         )}
 
-        {a.score === null && <Badge>Not scored — missing evidence is never treated as a positive signal</Badge>}
+        {a.score === null && <Badge wrap>Not scored — missing evidence is never treated as a positive signal</Badge>}
       </div>
     </details>
   );

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { EligibilityBadge } from "@/components/EligibilityNotice";
+import { GoogleRatingLine, GoogleSummary } from "@/components/GoogleRating";
 import { Highlights } from "@/components/Highlights";
 import { PriceStatusBadges } from "@/components/PriceStatusBadges";
 import { PropertyImage } from "@/components/PropertyImage";
+import { ReviewBriefText } from "@/components/ReviewBriefText";
 import { Badge } from "@/components/ui/Badge";
 import { ConfidenceBadge } from "@/components/ui/ConfidenceBadge";
 import { IconCar, IconPin, IconStar } from "@/components/ui/icons";
@@ -15,22 +17,29 @@ import {
   formatMinutes,
   formatMoney,
   formatMoneyRange,
-  formatRating,
   formatScore,
   formatSqftRange,
   pluralize,
 } from "@/lib/format";
-import { CATEGORY_LABEL, hasNoReviews, NA_TEXT, REGION_LABEL, UNIT_TYPE_LABEL } from "@/lib/presentation";
+import {
+  CATEGORY_LABEL,
+  NA_TEXT,
+  REGION_LABEL,
+  sourcesLabel,
+  UNIT_TYPE_LABEL,
+  type SourceNames,
+} from "@/lib/presentation";
 import type { CommuteBrief, PropertySummary, ReviewBrief } from "@/lib/types";
 
 interface PropertyCardProps {
   property: PropertySummary;
   highlighted: boolean;
   sortKey: SortKey;
+  sourceNames: SourceNames;
   onHoverChange: (id: number | null) => void;
 }
 
-export function PropertyCard({ property: p, highlighted, sortKey, onHoverChange }: PropertyCardProps) {
+export function PropertyCard({ property: p, highlighted, sortKey, sourceNames, onHoverChange }: PropertyCardProps) {
   const sortedCategory = SCORE_FILTER_CATEGORIES.find((category) => category === sortKey);
   const titleId = `property-${p.id}-title`;
 
@@ -85,9 +94,14 @@ export function PropertyCard({ property: p, highlighted, sortKey, onHoverChange 
 
         <PriceBlock property={p} />
 
+        <div className="space-y-2 rounded-xl border border-line px-3 py-2.5">
+          <GoogleRatingLine google={p.google} linkClassName="relative z-10" />
+          <GoogleSummary google={p.google} clamp />
+        </div>
+
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <CommuteSummary commute={p.commute} />
-          <ReviewSummary review={p.review} />
+          <ReviewSummary review={p.review} sourceLabel={sourcesLabel(p.source_ids, sourceNames)} />
         </dl>
 
         <Highlights positive={p.strongest_positive} concern={p.strongest_concern} variant="card" />
@@ -175,26 +189,18 @@ function CommuteSummary({ commute }: { commute: CommuteBrief | null }) {
   );
 }
 
-function ReviewSummary({ review }: { review: ReviewBrief }) {
+function ReviewSummary({ review, sourceLabel }: { review: ReviewBrief; sourceLabel: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <dt className="flex items-center gap-1 text-xs font-medium text-ink-faint">
-        <IconStar /> Reviews
+        <IconStar className="shrink-0" />{" "}
+        <span className="truncate" title={sourceLabel}>
+          {sourceLabel}
+        </span>
       </dt>
-      {hasNoReviews(review) ? (
-        <dd className="text-ink-muted">No reviews found</dd>
-      ) : (
-        <dd>
-          {review.average !== null ? (
-            <span className="font-semibold text-ink tabular-nums">{formatRating(review.average)}/5</span>
-          ) : (
-            <span className="text-ink-muted">No reliable average</span>
-          )}
-          <span className="text-ink-muted"> · {pluralize(review.count, "review")}</span>
-          {review.status === "conflict" && <span className="block text-xs font-medium text-amber-800 dark:text-amber-300">Sources disagree</span>}
-          {review.status === "insufficient" && <span className="block text-xs text-ink-faint">Insufficient evidence</span>}
-        </dd>
-      )}
+      <dd>
+        <ReviewBriefText review={review} />
+      </dd>
     </div>
   );
 }

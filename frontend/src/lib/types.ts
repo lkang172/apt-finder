@@ -34,6 +34,21 @@ export interface ReviewBrief {
   explanation: string;
 }
 
+export type GoogleStatus = "ok" | "not_configured" | "not_checked" | "no_match" | "error";
+
+export interface GoogleReviewsBrief {
+  status: GoogleStatus;
+  rating: number | null;
+  count: number | null;
+  maps_url: string | null;
+  summary: string | null;
+  summary_disclosure: string | null;
+  summary_flag_url: string | null;
+  match_confidence: "exact" | "probable" | "weak" | null;
+  observed_at: string | null;
+  explanation: string;
+}
+
 export interface Highlight {
   text: string;
   category: Category;
@@ -67,6 +82,7 @@ export interface PropertySummary {
   strongest_positive: Highlight | null;
   strongest_concern: Highlight | null;
   eligibility_notes: string[];
+  google: GoogleReviewsBrief;
   source_ids: string[];
 }
 
@@ -79,6 +95,7 @@ export interface PropertyListResponse {
 
 export type EvidenceKind =
   | "review"
+  | "review_summary"
   | "listing_fact"
   | "price"
   | "fee"
