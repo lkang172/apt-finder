@@ -30,8 +30,8 @@ Useful variants:
 
 ```bash
 uv run python -m aptfinder run --cities Sunnyvale,Mountain\ View   # subset of cities
-uv run python -m aptfinder run --sources apartment_list,redfin     # also try Redfin (opt-in)
-uv run python -m aptfinder run --sources apartment_list,trulia --cities Sunnyvale   # also try Trulia (opt-in)
+uv run python -m aptfinder run --sources apartment_list,official_site,redfin   # also try Redfin (opt-in)
+uv run python -m aptfinder run --sources apartment_list,official_site,trulia --cities Sunnyvale   # also try Trulia (opt-in)
 uv run python -m aptfinder run --skip-collection                   # re-filter and re-evaluate stored evidence
 ```
 
@@ -115,6 +115,7 @@ collectors never score, and React components never fetch third-party sites.
 | --- | --- | --- |
 | [Apartment List](https://www.apartmentlist.com) | Listings, unit-level base and total prices, required monthly fees, fee text, specials, amenities, pet/parking/lease facts, official website links, verified resident reviews with sub-ratings | Public pages allowed by robots.txt; requests are throttled (≥4 s apart) and cached for 12 h |
 | [Redfin Rentals](https://www.redfin.com) | Second listing source for cross-checking prices; unit-level base rent, sqft, availability | Public pages allowed by robots.txt (its APIs are disallowed and never called directly); ≥8 s between requests. In testing, Redfin began answering with an AWS WAF JavaScript challenge after a few dozen requests, so the collector stops at the first challenge and the run records the limitation. Expect little or no Redfin data until access recovers |
+| Official property websites | Unit-level base rent, total monthly price and itemized required fees where published, lease terms, specials, and income-restricted unit labels, read from the property's own leasing platform (AvalonBay, Jonah, Knock, SightMap). Runs for every property that lists an official website and could still qualify on price, and attaches to that property. Same-unit price differences from Apartment List are flagged as conflicts; an "Income Protected" label on the official site excludes that unit everywhere | On by default. Public pages and the JSON those pages load; ≥10 s between requests to shared leasing platforms. Sites on RentCafe, Entrata, Equity and other platforms that block automated access are skipped without a request; about half of official sites currently have no readable price data |
 | [Trulia Rentals](https://www.trulia.com) (opt-in) | Listings and unit-level base rent from the Zillow Group rental feed; total-price-only listings are stored as totals and never qualify on their own | Public pages allowed by robots.txt (enforced by the collector's own RFC 9309 parser); ≥15 s between requests, up to 3 search pages per city. In testing, Trulia answered HTTP 403 after about a dozen requests, so the collector stops at the first block; run it for one or two cities at a time |
 | [OSRM](https://project-osrm.org) public server | Driving distance and free-flow driving time to the office | ≤1 request/second policy; batched table requests, cached 7 days |
 | [U.S. Census Geocoder](https://geocoding.geo.census.gov) | Address → coordinates when a listing lacks them, and the office location | Free, no key |

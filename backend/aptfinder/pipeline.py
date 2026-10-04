@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 PREFILTER_MARGIN = 150
 # Redfin is opt-in: it began blocking this network and syndicates the same Zillow feed as other sources.
-DEFAULT_SOURCES = ("apartment_list",)
+DEFAULT_SOURCES = ("apartment_list", "official_site")
 # Official sites are checked for properties that could still qualify on price.
 OFFICIAL_SITE_FILTERS = {"price_and_unit_type", "price_freshness"}
 

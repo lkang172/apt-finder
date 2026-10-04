@@ -122,6 +122,7 @@ def _price_points(states: list[UnitPriceState], allowed_beds: tuple[int, ...]) -
                 base_max=max(s.observation.base_rent_max or s.observation.base_rent_min for s in group),
                 source_url=group[0].observation.source_url,
                 label=", ".join(labels[:4]) or None,
+                unit_keys=frozenset(k for s in group if s.unit.kind == "unit" and (k := _unit_key(s.unit.label))),
             )
         )
     return points

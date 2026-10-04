@@ -170,3 +170,11 @@ def test_extended_stay_hotels(name, url, hotel):
     from aptfinder.filters import extended_stay_hotel
 
     assert (extended_stay_hotel(name, url) is not None) is hotel
+
+
+def test_different_units_of_same_plan_are_not_a_conflict():
+    a = PricePoint("official_site", 1, 732, 2955, 2955, "https://a", "392", frozenset({"392"}))
+    b = PricePoint("apartment_list", 1, 732, 2775, 2775, "https://b", "24-254", frozenset({"24254"}))
+    assert not detect_price_conflicts([a, b])
+    same = PricePoint("apartment_list", 1, 732, 2775, 2775, "https://b", "392", frozenset({"392"}))
+    assert detect_price_conflicts([a, same])[0].difference == 180

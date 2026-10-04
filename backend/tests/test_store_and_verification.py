@@ -108,7 +108,7 @@ def test_out_of_range_property_is_excluded(session):
 def test_cross_source_price_conflict_detected(session, central_park):
     redfin = synthetic_redfin(
         "1055 Manet Dr",
-        [CollectedUnit("unit:r1", "unit", "12", "Fairwood", 1, 1.0, 720, 720, 2995, 2995)],
+        [CollectedUnit("unit:r1", "unit", "58", "Fairwood", 1, 1.0, 720, 720, 2995, 2995)],
         37.35720, -122.02780,
     )
     upsert_listing(session, redfin, run_id=None, now=FETCHED)

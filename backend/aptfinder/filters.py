@@ -143,6 +143,7 @@ class PricePoint:
     base_max: int
     source_url: str | None
     label: str | None = None
+    unit_keys: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -155,13 +156,18 @@ class PriceConflict:
 
 
 def detect_price_conflicts(points: list[PricePoint], sqft_tolerance: float = 0.02) -> list[PriceConflict]:
-    """Compares the same floor plan (same beds, sqft within tolerance) across different sources."""
+    """Compares the same floor plan (same beds, sqft within tolerance) across different sources.
+
+    When both sources name specific units, they are compared only if they share a unit: different units
+    of one floor plan are routinely priced differently by floor or view."""
     conflicts = []
     for i, a in enumerate(points):
         for b in points[i + 1:]:
             if a.source_id == b.source_id or a.beds != b.beds or not a.sqft or not b.sqft:
                 continue
             if abs(a.sqft - b.sqft) > max(a.sqft, b.sqft) * sqft_tolerance:
+                continue
+            if a.unit_keys and b.unit_keys and not a.unit_keys & b.unit_keys:
                 continue
             if a.base_max < b.base_min:
                 gap = b.base_min - a.base_max
