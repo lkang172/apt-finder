@@ -171,7 +171,7 @@ def upsert_listing(
 
     common = {"property_id": prop.id, "source_id": listing.source_id, "collected_at": collected_at, "raw_document_id": raw.id}
 
-    if listing.official_website_url:
+    if listing.official_website_url and listing.source_id != "official_site":
         _upsert_evidence(
             session, stable_id("ev", listing.source_id, listing.source_listing_id, "official_website"),
             kind="listing_fact", source_url=listing.official_website_url, source_page_url=listing.url,

@@ -30,7 +30,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     run_parser = sub.add_parser("run", help="Collect, filter, evaluate, and audit apartments")
     run_parser.add_argument("--cities", type=lambda v: v.split(","), default=None, help="Comma-separated subset of search cities")
-    run_parser.add_argument("--sources", type=lambda v: v.split(","), default=list(DEFAULT_SOURCES), help="Comma-separated sources: apartment_list, redfin, trulia")
+    run_parser.add_argument("--sources", type=lambda v: v.split(","), default=list(DEFAULT_SOURCES), help="Comma-separated sources: apartment_list, official_site, redfin, trulia")
     run_parser.add_argument("--skip-collection", action="store_true", help="Re-run filters and evaluation on stored evidence only")
     run_parser.set_defaults(func=run)
     serve_parser = sub.add_parser("serve", help="Start the API server")

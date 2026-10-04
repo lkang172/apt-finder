@@ -7,11 +7,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from aptfinder.collectors.apartment_list import ApartmentListCollector
+from aptfinder.collectors.official_sites import OfficialSiteCollector, OfficialSiteTarget
 from aptfinder.collectors.redfin import RedfinCollector
 from aptfinder.collectors.trulia import TruliaCollector
 from aptfinder.collectors.types import DiscoveryStub
 from aptfinder.config import SEARCH_CITIES, SearchCity, Settings
-from aptfinder.db.models import CollectionRun, Property, utcnow
+from aptfinder.db.models import CollectionRun, Evidence, Property, utcnow
 from aptfinder.geo import CORRIDOR
 from aptfinder.http import FetchError, PoliteClient, SourceBlocked
 from aptfinder.enrichment import attach_area_safety, collect_google_reviews, compute_commutes
@@ -26,6 +27,8 @@ log = logging.getLogger(__name__)
 PREFILTER_MARGIN = 150
 # Redfin is opt-in: it began blocking this network and syndicates the same Zillow feed as other sources.
 DEFAULT_SOURCES = ("apartment_list",)
+# Official sites are checked for properties that could still qualify on price.
+OFFICIAL_SITE_FILTERS = {"price_and_unit_type", "price_freshness"}
 
 
 @dataclass
@@ -52,6 +55,8 @@ def make_client(settings: Settings) -> PoliteClient:
             "www.apartmentlist.com": settings.apartment_list_min_interval_s,
             "www.redfin.com": settings.redfin_min_interval_s,
             "www.trulia.com": settings.trulia_min_interval_s,
+            "doorway-api.knockrentals.com": settings.shared_widget_min_interval_s,
+            "sightmap.com": settings.shared_widget_min_interval_s,
             "router.project-osrm.org": settings.osrm_min_interval_s,
         },
     )
@@ -132,6 +137,50 @@ def collect_listings(session: Session, ctx: RunContext, cities: Iterable[SearchC
             ctx.bump(f"{source}.listings_saved")
 
 
+def official_site_targets(session: Session) -> list[tuple[Property, str]]:
+    rows = session.execute(
+        select(Property, Evidence.source_url)
+        .join(Evidence, Evidence.property_id == Property.id)
+        .where(Evidence.title == "Official property website", Evidence.source_id != "official_site", Evidence.source_url.is_not(None))
+        .order_by(Property.id, Evidence.collected_at.desc())
+    ).all()
+    targets: dict[int, tuple[Property, str]] = {}
+    for prop, url in rows:
+        if prop.id in targets:
+            continue
+        reasons = {r.get("filter") for r in prop.exclusion_reasons or []}
+        if prop.status in ("included", "needs_reverification") or reasons <= OFFICIAL_SITE_FILTERS:
+            targets[prop.id] = (prop, url)
+    return list(targets.values())
+
+
+def collect_official_sites(session: Session, ctx: RunContext) -> None:
+    collector = OfficialSiteCollector(ctx.client, timedelta(hours=ctx.settings.listing_cache_ttl_hours))
+    unsupported: list[str] = []
+    for prop, url in official_site_targets(session):
+        ctx.bump("official_site.candidates")
+        target = OfficialSiteTarget(prop.name, url, prop.street_address, prop.city, prop.zip, prop.lat, prop.lon)
+        try:
+            listing = collector.collect(target)
+        except SourceBlocked as exc:
+            ctx.note("official_site", f"{prop.name}: stopped after the site signaled rate limiting or blocking: {exc}")
+            continue
+        if listing is None:
+            unsupported.append(prop.name)
+            continue
+        if listing.city is None:
+            listing.city = prop.city
+        upsert_listing(session, listing, ctx.run.id, utcnow(), property_hint=prop.id)
+        session.commit()
+        ctx.bump("official_site.listings_saved")
+    if unsupported:
+        ctx.note(
+            "official_site",
+            f"{len(unsupported)} official websites have no readable price data (unsupported or blocked leasing platform): "
+            + ", ".join(sorted(unsupported)),
+        )
+
+
 def apply_hard_filters(session: Session, settings: Settings, now: datetime) -> dict[str, int]:
     counts: dict[str, int] = {}
     for prop in session.scalars(select(Property)):
@@ -209,6 +258,7 @@ def execute_run(
     sources: Iterable[str] = DEFAULT_SOURCES,
     skip_collection: bool = False,
 ) -> RunContext:
+    sources = list(sources)
     from aptfinder.db.session import session_scope
 
     client = make_client(settings)
@@ -218,8 +268,11 @@ def execute_run(
         ctx = RunContext(run, settings, client)
         try:
             if not skip_collection:
-                collect_listings(session, ctx, resolve_cities(cities), list(sources))
+                collect_listings(session, ctx, resolve_cities(cities), sources)
             ctx.stats.update({f"status.{k}": v for k, v in apply_hard_filters(session, settings, utcnow()).items()})
+            if not skip_collection and "official_site" in sources:
+                collect_official_sites(session, ctx)
+                ctx.stats.update({f"status_after_official_sites.{k}": v for k, v in apply_hard_filters(session, settings, utcnow()).items()})
             enrich_and_evaluate(session, ctx, api_client, utcnow())
             ctx.stats["network_requests"] = client.network_requests + api_client.network_requests
             finish_run(session, ctx)
