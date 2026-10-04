@@ -12,6 +12,9 @@ from aptfinder.evaluators.recency import age_years, is_recent, newest_first, rec
 MIN_RELEVANT_REVIEWS = 3
 SCORE_MIDPOINT = 5.5
 SCORE_SPAN = 4.5
+# Pseudo-weight of neutral evidence added to every average so a handful of agreeing items cannot
+# produce an extreme score; it fades as real evidence accumulates.
+NEUTRAL_PRIOR_WEIGHT = 2.0
 MIN_SCORE = 1.0
 MAX_SCORE = 10.0
 
@@ -149,7 +152,7 @@ def distinct_reviews(items: Iterable[ScoredItem]) -> list[ReviewEvidence]:
 
 def net_sentiment(items: Sequence[ScoredItem]) -> float:
     total = sum(item.influence for item in items)
-    return sum(item.influence * item.value for item in items) / total if total else 0.0
+    return sum(item.influence * item.value for item in items) / (total + NEUTRAL_PRIOR_WEIGHT) if total else 0.0
 
 
 def sentiment_score(net: float) -> float:

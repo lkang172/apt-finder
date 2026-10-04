@@ -61,11 +61,11 @@ def test_no_reviews_at_all():
 
 def test_score_formula_from_net_sentiment():
     all_negative = [review(i, "The walls are paper thin.") for i in "abc"]
-    assert run(evaluate_noise, all_negative).score == 1.0
+    assert run(evaluate_noise, all_negative).score == round(5.5 + 4.5 * (-3 / 5), 1)
     mixed = [review("a", "Thin walls."), review("b", "Noisy neighbors upstairs."), review("c", "Super quiet.")]
     result = run(evaluate_noise, mixed)
-    assert result.score == 4.0
-    assert result.details["net_sentiment"] == pytest.approx(-1 / 3, abs=1e-3)
+    assert result.score == round(5.5 + 4.5 * (-1 / 5), 1)
+    assert result.details["net_sentiment"] == pytest.approx(-1 / 5, abs=1e-3)
     assert "Evidence is mixed: 2 reviews include negative and 1 includes positive noise evidence." in result.summary
 
 
@@ -86,7 +86,7 @@ def test_scored_summary_cites_counts_and_details_keys():
 def test_explicit_no_pests_is_positive_evidence_but_silence_is_not():
     explicit = [review(i, "Never had any bugs or roaches here.") for i in "abc"]
     scored = run(evaluate_pests, explicit)
-    assert scored.score == 10.0
+    assert scored.score == round(5.5 + 4.5 * (3 / 5), 1)
     assert scored.positive_evidence_ids == ["a", "b", "c"]
     assert scored.claims[0].theme == "no_pests" and scored.claims[0].polarity == "positive"
 
@@ -105,16 +105,16 @@ def test_neutral_subscores_count_toward_evidence_and_denominator():
     assert result.claims[0].polarity == "neutral"
 
     diluted = [review("a", "Thin walls."), review("b", FILLER, subscores={"noise": 3}), review("c", FILLER, subscores={"noise": 3})]
-    assert run(evaluate_noise, diluted).score == round(5.5 + 4.5 * (-1 / 3), 1)
+    assert run(evaluate_noise, diluted).score == round(5.5 + 4.5 * (-1 / 5), 1)
 
 
 def test_subscores_map_to_categories_and_combine_per_review():
     reviews = [review(i, FILLER, subscores={"management": 5, "maintenance": 4, "noise": 1}) for i in "abc"]
     management = run(evaluate_management, reviews)
-    assert management.score == round(5.5 + 4.5 * 0.75, 1)
+    assert management.score == round(5.5 + 4.5 * 2.25 / 5, 1)
     assert management.details["subscores"] == {"count": 3, "average": 4.5}
     noise = run(evaluate_noise, reviews)
-    assert noise.score == 1.0
+    assert noise.score == round(5.5 + 4.5 * (-3 / 5), 1)
     assert "unfavorable resident noise sub-rating" in noise.claims[0].text
 
 
@@ -176,7 +176,7 @@ def test_management_change_halves_weight_of_earlier_reviews():
     assert "may concern previous management" in result.summary
     marker = next(c for c in result.claims if c.theme == "management_change")
     assert marker.polarity == "neutral" and marker.evidence_ids == ["change"]
-    assert result.score == round(5.5 + 4.5 * (3 - 0.5) / 3.5, 1)
+    assert result.score == round(5.5 + 4.5 * (3 - 0.5) / (3.5 + 2), 1)
 
 
 def test_management_without_change_records_absence():
@@ -262,7 +262,7 @@ def test_building_safety_uses_resident_reports_only():
         review("c", "I feel safe here, the gated garage works well."),
     ]
     result = run(evaluate_building_safety, reviews)
-    assert result.score == round(5.5 + 4.5 * (1 - 2.6) / 3.6, 1)
+    assert result.score == round(5.5 + 4.5 * (1 - 2.6) / (3.6 + 2), 1)
     assert result.negative_evidence_ids == ["a", "b"]
     assert result.positive_evidence_ids == ["c"]
 
@@ -278,3 +278,10 @@ def test_claims_cite_existing_reviews_and_are_sorted_by_weight():
     assert all(c.evidence_ids and set(c.evidence_ids) <= ids for c in result.claims)
     weights = [c.weight for c in result.claims]
     assert weights == sorted(weights, reverse=True)
+
+
+def test_few_agreeing_items_cannot_produce_extreme_scores():
+    few = run(evaluate_noise, [review(i, "Super quiet building.") for i in "abc"])
+    many = run(evaluate_noise, [review(i, "Super quiet building.") for i in "abcdefghijkl"])
+    assert few.score < many.score < 10.0
+    assert few.score == round(5.5 + 4.5 * 3 / 5, 1)

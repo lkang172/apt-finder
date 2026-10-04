@@ -81,8 +81,8 @@ def test_resident_reports_adjust_score_by_at_most_one():
     ]
     baseline = evaluate_neighborhood_safety(area(), [], NOW)
     adjusted = evaluate_neighborhood_safety(area(), reviews, NOW)
-    assert adjusted.details["resident_adjustment"] == -1.0
-    assert adjusted.score == pytest.approx(baseline.score - 1.0)
+    assert adjusted.details["resident_adjustment"] == -0.6
+    assert adjusted.score == pytest.approx(baseline.score - 0.6)
     assert adjusted.confidence == "low"
     resident_claims = [c for c in adjusted.claims if c.theme == "area_crime"]
     assert resident_claims and set(resident_claims[0].evidence_ids) == {"a", "b", "c"}

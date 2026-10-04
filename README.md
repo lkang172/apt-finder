@@ -167,6 +167,12 @@ show **N/A — insufficient evidence**. A lack of complaints is never treated as
 Recent reviews weigh more (≤2 years: 1.0, 2–4 years: 0.6, 4–7 years: 0.3, older: 0.15); old evidence is
 kept but labeled with its age.
 
+A review-based score is `5.5 + 4.5 × net`, where `net` is the recency- and severity-weighted balance of
+positive and negative mentions and resident sub-ratings. Two units of neutral weight are added to the
+denominator, so three agreeing reviews produce 8.2 rather than a perfect 10; scores approach the extremes
+only as evidence accumulates. Confidence is assigned separately from the number, recency, and source
+diversity of the reviews.
+
 | Category | Weight |
 | --- | ---: |
 | Commute | 25% |
