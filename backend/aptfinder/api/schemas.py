@@ -35,6 +35,19 @@ class Highlight(BaseModel):
     claim_id: int
 
 
+class GoogleReviewsBrief(BaseModel):
+    status: Literal["ok", "not_configured", "not_checked", "no_match", "error"]
+    rating: float | None
+    count: int | None
+    maps_url: str | None
+    summary: str | None
+    summary_disclosure: str | None
+    summary_flag_url: str | None
+    match_confidence: Literal["exact", "probable", "weak"] | None
+    observed_at: datetime | None
+    explanation: str
+
+
 class PropertySummary(BaseModel):
     id: int
     name: str
@@ -62,6 +75,7 @@ class PropertySummary(BaseModel):
     strongest_positive: Highlight | None
     strongest_concern: Highlight | None
     eligibility_notes: list[str]
+    google: GoogleReviewsBrief
     source_ids: list[str]
 
 
@@ -83,7 +97,7 @@ class PropertyListResponse(BaseModel):
 
 class EvidenceItem(BaseModel):
     id: str
-    kind: Literal["review", "listing_fact", "price", "fee", "rating_summary", "commute_fact", "safety_fact", "derived"]
+    kind: Literal["review", "review_summary", "listing_fact", "price", "fee", "rating_summary", "commute_fact", "safety_fact", "derived"]
     source_id: str
     source_name: str
     title: str

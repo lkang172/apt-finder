@@ -24,6 +24,7 @@ class ReviewEvidence:
     review_date: datetime | None
     text: str
     subscores: dict[str, float] = field(default_factory=dict)
+    is_summary: bool = False
 
 
 @dataclass(frozen=True)

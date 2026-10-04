@@ -30,7 +30,7 @@ def list_properties() -> s.PropertyListResponse:
     with session_scope() as session:
         names = views.SourceNames(session)
         props = session.scalars(select(Property).where(Property.status == "included").order_by(Property.name)).all()
-        items = [views.summary(session, views.load_context(session, p, settings, now), names) for p in props]
+        items = [views.summary(session, views.load_context(session, p, settings, now), names, settings) for p in props]
         items = [i for i in items if i.unit_types]
         return s.PropertyListResponse(
             items=items,

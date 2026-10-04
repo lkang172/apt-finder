@@ -31,6 +31,19 @@ interface ReviewBrief {
 
 interface Highlight { text: string; category: Category; claim_id: number }
 
+interface GoogleReviewsBrief {
+  status: "ok" | "not_configured" | "not_checked" | "no_match" | "error";
+  rating: number | null;                  // Google stars out of 5 (all Google reviewers)
+  count: number | null;                   // total Google ratings — may be far more than the review texts we hold
+  maps_url: string | null;                // Google Maps place page from the API; never constructed
+  summary: string | null;                 // Google's AI-generated summary of the reviews, verbatim
+  summary_disclosure: string | null;      // e.g. "Summarized with Gemini" — always show next to the summary
+  summary_flag_url: string | null;        // Google's "report this summary" link, show when present
+  match_confidence: "exact" | "probable" | "weak" | null;
+  observed_at: string | null;
+  explanation: string;                    // human-readable status, e.g. why there is no Google data
+}
+
 interface PropertySummary {
   id: number;
   name: string;
@@ -58,6 +71,7 @@ interface PropertySummary {
   strongest_positive: Highlight | null;
   strongest_concern: Highlight | null;
   eligibility_notes: string[];            // e.g. ["Senior Housing"], ["Affordable Housing"]; show prominently
+  google: GoogleReviewsBrief;             // show stars + count on every card; summary on card (truncated) and detail
   source_ids: string[];
 }
 
@@ -70,7 +84,7 @@ interface PropertyListResponse {
 
 interface EvidenceItem {
   id: string;
-  kind: "review" | "listing_fact" | "price" | "fee" | "rating_summary" | "commute_fact" | "safety_fact" | "derived";
+  kind: "review" | "review_summary" | "listing_fact" | "price" | "fee" | "rating_summary" | "commute_fact" | "safety_fact" | "derived";
   source_id: string;
   source_name: string;
   title: string;

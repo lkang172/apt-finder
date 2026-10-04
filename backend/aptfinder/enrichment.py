@@ -1,13 +1,13 @@
 import logging
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from aptfinder.collectors.google_places import GooglePlacesClient, GooglePlacesError, PropertyQuery
 from aptfinder.config import Settings
-from aptfinder.db.models import CommuteResult, Evidence, Property
+from aptfinder.db.models import CommuteResult, Evidence, GooglePlaceMatch, Property
 from aptfinder.http import FetchError, PoliteClient
 from aptfinder.ids import stable_id
 from aptfinder.routing.base import RouteResult
@@ -132,28 +132,82 @@ def attach_area_safety(session: Session, client: PoliteClient, settings: Setting
     return len(props)
 
 
-def collect_google_reviews(session: Session, settings: Settings, props: list[Property], now: datetime, note: Note) -> int:
+def _record_match(session: Session, prop: Property, status: str, checked_at: datetime, reason: str | None = None, result=None) -> None:
+    row = session.get(GooglePlaceMatch, prop.id) or GooglePlaceMatch(property_id=prop.id)
+    match = result.match if result is not None else None
+    row.status = status
+    row.checked_at = checked_at
+    row.reason = reason
+    row.place_id = match.place_id if match else None
+    row.display_name = match.display_name if match else None
+    row.formatted_address = match.formatted_address if match else None
+    row.distance_meters = match.distance_meters if match else None
+    row.match_confidence = match.match_confidence if match else None
+    row.maps_url = result.source_url if result is not None else None
+    session.add(row)
+
+
+def _save_review_summary(session: Session, prop: Property, result) -> None:
+    summary = result.summary
+    if summary is None:
+        return
+    evidence_id = stable_id("ev", "review_summary", "google_places", result.match.place_id, summary.text)
+    if session.get(Evidence, evidence_id) is not None:
+        session.get(Evidence, evidence_id).collected_at = result.fetched_at
+        return
+    session.add(
+        Evidence(
+            id=evidence_id, property_id=prop.id, kind="review_summary", source_id="google_places",
+            source_url=summary.reviews_url or result.source_url, source_page_url=result.source_url,
+            title="Google's AI summary of reviews", content=summary.text,
+            categories=["noise", "management", "pests", "building_safety", "neighborhood_safety", "other_issues"],
+            data={"summary_disclosure": summary.disclosure, "flag_url": summary.flag_url, "place_id": result.match.place_id,
+                  "generated_by": "Google (Gemini) from all Google reviews of the place"},
+            published_at=result.fetched_at, first_collected_at=result.fetched_at, collected_at=result.fetched_at,
+            is_derived=True,
+        )
+    )
+
+
+def google_lookup_due(session: Session, prop: Property, settings: Settings, now: datetime) -> bool:
+    row = session.get(GooglePlaceMatch, prop.id)
+    if row is None or row.status == "error":
+        return True
+    return now - row.checked_at > timedelta(days=settings.google_refresh_days)
+
+
+def collect_google_reviews(session: Session, settings: Settings, props: list[Property], now: datetime, note: Note, client_factory=GooglePlacesClient) -> int:
     if not settings.google_maps_api_key:
         return 0
+    due = [p for p in props if google_lookup_due(session, p, settings, now)]
     collected = 0
-    with GooglePlacesClient(settings.google_maps_api_key) as places:
-        for prop in props:
+    with client_factory(settings.google_maps_api_key) as places:
+        for prop in due:
             if prop.lat is None or prop.lon is None:
+                _record_match(session, prop, "no_match", now, "No coordinates to match a Google Maps place against")
                 continue
             try:
                 result = places.collect(PropertyQuery(prop.name, prop.street_address, prop.city, prop.lat, prop.lon))
             except GooglePlacesError as exc:
-                note("google_places", f"Stopped Google Places collection: {exc}")
-                break
-            if result is None:
-                note("google_places", f"{prop.name}: no confidently matching Google Maps place")
+                if exc.is_fatal:
+                    note("google_places", f"Stopped Google Places collection: {exc}")
+                    break
+                _record_match(session, prop, "error", now, str(exc))
+                session.commit()
                 continue
-            save_reviews(session, prop, "google_places", result.reviews, result.source_url, result.fetched_at)
+            if result is None:
+                _record_match(session, prop, "no_match", now, "No Google Maps place within 150 m matched this property's name and address")
+                session.commit()
+                continue
+            page_url = result.summary.reviews_url if result.summary and result.summary.reviews_url else result.source_url
+            save_reviews(session, prop, "google_places", result.reviews, page_url, result.fetched_at)
             save_rating(
                 session, prop, "google_places", result.rating, result.source_url, result.fetched_at,
-                stable_id("ev", "rating", "google_places", result.match.place_id, result.fetched_at.date().isoformat()),
+                stable_id("ev", "rating", "google_places", result.match.place_id, result.fetched_at.isoformat()),
                 match_confidence=result.match.match_confidence,
             )
+            _save_review_summary(session, prop, result)
+            _record_match(session, prop, "ok", result.fetched_at, None, result)
             session.commit()
             collected += 1
     return collected

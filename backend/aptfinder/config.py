@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     osrm_min_interval_s: float = 1.5
 
     google_maps_api_key: str = ""
+    google_refresh_days: int = 7
 
     @property
     def resolved_database_url(self) -> str:

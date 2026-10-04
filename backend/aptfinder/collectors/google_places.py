@@ -18,7 +18,7 @@ SOURCE_NAME = "Google Maps (Places API)"
 TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places/{place_id}"
 SEARCH_FIELD_MASK = "places.id,places.displayName,places.formattedAddress,places.location"
-DETAILS_FIELD_MASK = "rating,userRatingCount,reviews,googleMapsUri"
+DETAILS_FIELD_MASK = "rating,userRatingCount,reviews,googleMapsUri,reviewSummary"
 MAX_MATCH_METERS = 150.0
 PROBABLE_MAX_METERS = 75.0
 SEARCH_BIAS_RADIUS_METERS = 500.0
@@ -36,7 +36,21 @@ STREET_NUMBER = re.compile(r"^\s*(\d+)")
 
 
 class GooglePlacesError(Exception):
-    pass
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+    @property
+    def is_fatal(self) -> bool:
+        return self.status_code in (400, 401, 403, 429)
+
+
+@dataclass(frozen=True)
+class GoogleReviewSummary:
+    text: str
+    disclosure: str | None
+    flag_url: str | None
+    reviews_url: str | None
 
 
 @dataclass(frozen=True)
@@ -73,6 +87,7 @@ class GooglePlaceReviews:
     source_url: str | None
     fetched_at: datetime
     notes: list[str] = field(default_factory=list)
+    summary: GoogleReviewSummary | None = None
 
 
 def evaluate_candidate(query: PropertyQuery, place: dict[str, Any]) -> PlaceMatch | None:
@@ -124,6 +139,19 @@ def parse_details(payload: dict[str, Any], place_id: str) -> tuple[CollectedRati
     return rating, reviews, maps_uri
 
 
+def parse_review_summary(payload: dict[str, Any]) -> GoogleReviewSummary | None:
+    summary = payload.get("reviewSummary") or {}
+    text = ((summary.get("text") or {}).get("text") or "").strip()
+    if not text:
+        return None
+    return GoogleReviewSummary(
+        text=text,
+        disclosure=((summary.get("disclosureText") or {}).get("text") or None),
+        flag_url=summary.get("flagContentUri"),
+        reviews_url=summary.get("reviewsUri"),
+    )
+
+
 class GooglePlacesClient:
     def __init__(self, api_key: str, transport: httpx.BaseTransport | None = None):
         if not api_key:
@@ -164,7 +192,7 @@ class GooglePlacesClient:
         payload = self._request("GET", url, DETAILS_FIELD_MASK, params={"languageCode": "en"})
         rating, reviews, maps_uri = parse_details(payload, match.place_id)
         notes = [] if maps_uri else ["Google did not return a Maps URL for this place; Source URL unavailable."]
-        return GooglePlaceReviews(match, rating, reviews, maps_uri, datetime.now(UTC), notes)
+        return GooglePlaceReviews(match, rating, reviews, maps_uri, datetime.now(UTC), notes, parse_review_summary(payload))
 
     def collect(self, query: PropertyQuery) -> GooglePlaceReviews | None:
         match = self.find_place(query)
@@ -179,7 +207,7 @@ class GooglePlacesClient:
         except httpx.HTTPError as exc:
             raise GooglePlacesError(f"{method} {url} failed: {exc.__class__.__name__}") from exc
         if response.status_code != 200:
-            raise GooglePlacesError(f"{method} {url} returned HTTP {response.status_code}: {_error_message(response)}")
+            raise GooglePlacesError(f"{method} {url} returned HTTP {response.status_code}: {_error_message(response)}", response.status_code)
         return response.json()
 
 

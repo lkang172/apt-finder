@@ -245,6 +245,23 @@ class RatingSummary(Base):
     evidence_id: Mapped[str | None] = mapped_column(ForeignKey("evidence.id"))
 
 
+class GooglePlaceMatch(Base):
+    """Outcome of the latest Google Maps lookup for a property, including failures to match."""
+
+    __tablename__ = "google_place_matches"
+
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), primary_key=True)
+    status: Mapped[str] = mapped_column(String(16))
+    place_id: Mapped[str | None] = mapped_column(String(200))
+    display_name: Mapped[str | None] = mapped_column(String(300))
+    formatted_address: Mapped[str | None] = mapped_column(String(300))
+    maps_url: Mapped[str | None] = mapped_column(String(2000))
+    distance_meters: Mapped[float | None] = mapped_column(Float)
+    match_confidence: Mapped[str | None] = mapped_column(String(16))
+    checked_at: Mapped[datetime]
+    reason: Mapped[str | None] = mapped_column(Text)
+
+
 class CommuteResult(Base):
     __tablename__ = "commute_results"
 

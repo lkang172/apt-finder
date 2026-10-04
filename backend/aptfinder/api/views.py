@@ -15,6 +15,7 @@ from aptfinder.db.models import (
     CommuteResult,
     Evidence,
     FeeObservation,
+    GooglePlaceMatch,
     ListingSource,
     OverallScore,
     Property,
@@ -25,6 +26,7 @@ from aptfinder.filters import RatingInput, evaluate_rating_filter
 from aptfinder.scoring import CATEGORY_LABELS
 from aptfinder.verification import PriceVerification, latest_ratings, verify_prices
 
+REVIEW_SOURCE_LABELS = {"apartment_list": "Apartment List", "google_places": "Google", "redfin": "Redfin"}
 NOT_EVALUATED = "Not evaluated yet — run the pipeline to evaluate this category."
 
 
@@ -148,15 +150,61 @@ def monthly_cost(ctx: PropertyContext) -> s.MonthlyCost:
 
 
 def review_brief(session: Session, prop: Property) -> tuple[s.ReviewBrief, s.RatingFilterView]:
+    """The brief covers non-Google review sources (Google has its own brief); the filter view covers all."""
     ratings = latest_ratings(session, prop)
     decision = evaluate_rating_filter([RatingInput(r.source_id, r.average, r.count, r.scale, r.match_confidence) for r in ratings])
-    rated = [r for r in ratings if r.count and r.average is not None]
+    others = [r for r in ratings if r.source_id != "google_places"]
+    other_decision = evaluate_rating_filter([RatingInput(r.source_id, r.average, r.count, r.scale, r.match_confidence) for r in others])
+    rated = [r for r in others if r.count and r.average is not None]
     count = sum(r.count for r in rated)
     average = round(sum(r.average * 5.0 / r.scale * r.count for r in rated) / count, 2) if count else None
-    status = decision.status if decision.status in ("ok", "no_reviews", "insufficient", "conflict") else "ok"
+    status = other_decision.status if other_decision.status in ("ok", "no_reviews", "insufficient", "conflict") else "ok"
+    explanation = other_decision.explanation
+    if other_decision.status == "no_reviews":
+        checked = sorted({REVIEW_SOURCE_LABELS.get(r.source_id, r.source_id) for r in others}) or ["no listing source"]
+        explanation = f"No reviews found on {', '.join(checked)}"
+    filter_explanation = decision.explanation
+    if decision.status == "no_reviews" and not any(r.source_id == "google_places" for r in ratings):
+        filter_explanation = f"{explanation}; Google reviews not checked"
     return (
-        s.ReviewBrief(average=average, count=count, status=status, explanation=decision.explanation),
-        s.RatingFilterView(status=decision.status, explanation=decision.explanation),
+        s.ReviewBrief(average=average, count=count, status=status, explanation=explanation),
+        s.RatingFilterView(status=decision.status, explanation=filter_explanation),
+    )
+
+
+def google_brief(session: Session, prop: Property, settings: Settings) -> s.GoogleReviewsBrief:
+    match = session.get(GooglePlaceMatch, prop.id)
+    empty = dict(rating=None, count=None, maps_url=None, summary=None, summary_disclosure=None, summary_flag_url=None,
+                 match_confidence=None, observed_at=None)
+    if match is None:
+        if not settings.google_maps_api_key:
+            return s.GoogleReviewsBrief(status="not_configured", explanation="Google reviews not checked — Google Maps API key not configured", **empty)
+        return s.GoogleReviewsBrief(status="not_checked", explanation="Google reviews not checked yet — run a refresh", **empty)
+    if match.status != "ok":
+        status = "no_match" if match.status == "no_match" else "error"
+        reason = match.reason or "Google Maps lookup failed"
+        return s.GoogleReviewsBrief(status=status, explanation=reason, **{**empty, "observed_at": match.checked_at})
+    rating = next((r for r in latest_ratings(session, prop) if r.source_id == "google_places"), None)
+    summary = session.scalars(
+        select(Evidence).where(Evidence.property_id == prop.id, Evidence.kind == "review_summary")
+        .order_by(Evidence.collected_at.desc())
+    ).first()
+    count = rating.count if rating else None
+    if rating and rating.average is not None and count:
+        explanation = f"{rating.average:.1f} stars across {count} Google ratings; Google returns at most 5 review texts"
+    else:
+        explanation = "No Google ratings for this place"
+    return s.GoogleReviewsBrief(
+        status="ok",
+        rating=rating.average if rating else None,
+        count=count,
+        maps_url=match.maps_url,
+        summary=summary.content if summary else None,
+        summary_disclosure=(summary.data or {}).get("summary_disclosure") if summary else None,
+        summary_flag_url=(summary.data or {}).get("flag_url") if summary else None,
+        match_confidence=match.match_confidence if match.match_confidence in ("exact", "probable", "weak") else None,
+        observed_at=match.checked_at,
+        explanation=explanation,
     )
 
 
@@ -197,7 +245,7 @@ def highlights(session: Session, ctx: PropertyContext) -> tuple[s.Highlight | No
     return make("positive"), make("negative")
 
 
-def summary(session: Session, ctx: PropertyContext, names: SourceNames) -> s.PropertySummary:
+def summary(session: Session, ctx: PropertyContext, names: SourceNames, settings: Settings) -> s.PropertySummary:
     prop = ctx.prop
     qualifying = ctx.price.qualifying
     unit_types = sorted({"studio" if q.unit.beds == 0 else "1br" for q in qualifying}, key=lambda t: t != "studio")
@@ -245,6 +293,7 @@ def summary(session: Session, ctx: PropertyContext, names: SourceNames) -> s.Pro
         strongest_positive=positive,
         strongest_concern=concern,
         eligibility_notes=eligibility_notes,
+        google=google_brief(session, prop, settings),
         source_ids=sorted({ls.source_id for ls in ctx.listings}),
     )
 
@@ -273,7 +322,7 @@ def _assessment_view(session: Session, category: str, assessment: CategoryAssess
 
 def _review_intelligence(session: Session, ctx: PropertyContext, names: SourceNames, now: datetime) -> s.ReviewIntelligence:
     reviews = session.scalars(
-        select(Evidence).where(Evidence.property_id == ctx.prop.id, Evidence.kind == "review").order_by(Evidence.published_at.desc())
+        select(Evidence).where(Evidence.property_id == ctx.prop.id, Evidence.kind.in_(("review", "review_summary"))).order_by(Evidence.published_at.desc())
     ).all()
     quality = ctx.assessments.get("review_quality")
     intel = (quality.details or {}).get("intelligence", {}) if quality else {}
@@ -294,7 +343,7 @@ def _review_intelligence(session: Session, ctx: PropertyContext, names: SourceNa
 
 
 def detail(session: Session, ctx: PropertyContext, names: SourceNames, settings: Settings, now: datetime, run: CollectionRun | None) -> s.PropertyDetail:
-    base = summary(session, ctx, names)
+    base = summary(session, ctx, names, settings)
     prop = ctx.prop
     _, rating_filter = review_brief(session, prop)
 
@@ -390,8 +439,13 @@ def detail(session: Session, ctx: PropertyContext, names: SourceNames, settings:
         limitations.extend(f"{names(ls.source_id)}: {note}" for note in (ls.facts or {}).get("notes") or [])
     if ctx.commute and ctx.commute.am_rush_minutes is None:
         limitations.append(f"Rush-hour commute: {ctx.commute.rush_status}")
+    google = google_brief(session, prop, settings)
+    if google.status != "ok":
+        limitations.append(google.explanation)
+    elif google.count and google.count > 5:
+        limitations.append(f"Google has {google.count} ratings for this place, but its API returns at most 5 review texts; category scores use those texts and Google's AI summary.")
     if not ratings or all(r.count == 0 for r in ratings):
-        limitations.append("No resident reviews were found in the accessible sources; review-based categories cannot be scored.")
+        limitations.append("No resident reviews were collected from the sources checked; review-based categories cannot be scored.")
     if run:
         sources_here = {ls.source_id for ls in ctx.listings}
         limitations.extend(f"{names(l['source_id'])}: {l['message']}" for l in run.limitations or [] if l.get("source_id") in sources_here)

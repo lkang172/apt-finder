@@ -50,7 +50,10 @@ def evaluate_all(
         "other_issues": lambda: evaluate_other_issues(review_list, shared, now),
     }
     results = {category: evaluators[category]() for category in CATEGORIES}
-    quality = assess_review_quality(review_list, ratings, now, shared)
-    quality.details["intelligence"] = build_review_intelligence(review_list, shared, now)
+    individual = [r for r in review_list if not r.is_summary]
+    individual_ids = {r.evidence_id for r in individual}
+    individual_mentions = [m for m in shared if m.evidence_id in individual_ids]
+    quality = assess_review_quality(individual, ratings, now, individual_mentions)
+    quality.details["intelligence"] = build_review_intelligence(individual, individual_mentions, now)
     results[REVIEW_QUALITY] = quality
     return results

@@ -46,6 +46,23 @@ def review_inputs(session: Session, prop: Property) -> list[ReviewEvidence]:
             subscores={k: float(v) for k, v in (review.subscores or {}).items() if isinstance(v, (int, float))},
         )
         for review, evidence in rows
+    ] + [
+        ReviewEvidence(
+            evidence_id=summary.id,
+            source_id=summary.source_id,
+            source_url=summary.source_url or summary.source_page_url,
+            reviewer="Google AI summary",
+            rating=None,
+            review_date=summary.published_at,
+            text=summary.content,
+            is_summary=True,
+        )
+        for summary in session.scalars(
+            select(Evidence)
+            .where(Evidence.property_id == prop.id, Evidence.kind == "review_summary")
+            .order_by(Evidence.collected_at.desc())
+            .limit(1)
+        )
     ]
 
 

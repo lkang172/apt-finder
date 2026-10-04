@@ -150,10 +150,16 @@ def enrich_and_evaluate(
 ) -> None:
     settings = ctx.settings
     included = _included(session)
-    if settings.google_maps_api_key and included:
-        ctx.bump("google_places.properties", collect_google_reviews(session, settings, included, now, ctx.note))
-        apply_hard_filters(session, settings, now)
+    if settings.google_maps_api_key:
+        rating_excluded = [
+            p for p in session.scalars(select(Property).where(Property.status == "excluded"))
+            if any(r.get("filter") == "review_rating" for r in p.exclusion_reasons or [])
+        ]
+        ctx.bump("google_places.properties", collect_google_reviews(session, settings, included + rating_excluded, now, ctx.note))
+        ctx.stats.update({f"status_after_google.{k}": v for k, v in apply_hard_filters(session, settings, now).items()})
         included = _included(session)
+    else:
+        ctx.note("google_places", "Google reviews not checked: set APTFINDER_GOOGLE_MAPS_API_KEY to enable Google ratings, review summaries, and reviews")
     ctx.bump("commutes_computed", compute_commutes(session, api_client, settings, included, ctx.note))
     ctx.bump("area_safety_attached", attach_area_safety(session, api_client, settings, included, ctx.note))
     synthesizer = synthesizer or DeterministicSynthesizer()
