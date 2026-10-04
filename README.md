@@ -81,7 +81,7 @@ collectors never score, and React components never fetch third-party sites.
 | Source | Used for | Access notes |
 | --- | --- | --- |
 | [Apartment List](https://www.apartmentlist.com) | Listings, unit-level base and total prices, required monthly fees, fee text, specials, amenities, pet/parking/lease facts, official website links, verified resident reviews with sub-ratings | Public pages allowed by robots.txt; requests are throttled (≥4 s apart) and cached for 12 h |
-| [Redfin Rentals](https://www.redfin.com) | Second listing source for cross-checking prices; unit-level base rent, sqft, availability | Public pages allowed by robots.txt (its APIs are disallowed and never called directly); ≥8 s between requests; the collector stops on the first rate-limit signal |
+| [Redfin Rentals](https://www.redfin.com) | Second listing source for cross-checking prices; unit-level base rent, sqft, availability | Public pages allowed by robots.txt (its APIs are disallowed and never called directly); ≥8 s between requests. In testing, Redfin began answering with an AWS WAF JavaScript challenge after a few dozen requests, so the collector stops at the first challenge and the run records the limitation. Expect little or no Redfin data until access recovers |
 | [OSRM](https://project-osrm.org) public server | Driving distance and free-flow driving time to the office | ≤1 request/second policy; batched table requests, cached 7 days |
 | [U.S. Census Geocoder](https://geocoding.geo.census.gov) | Address → coordinates when a listing lacks them, and the office location | Free, no key |
 | [California DOJ OpenJustice](https://openjustice.doj.ca.gov) | City-level reported violent and property crime counts (annual) | Public CSV |
@@ -132,9 +132,15 @@ updates records instead of duplicating them, and the raw page behind each record
    updated it within 21 days, and the unit must still appear in that source's latest fetch. Properties
    whose only in-range prices are stale are held as "needs re-verification" and never shown as
    verified.
-4. **Review rating**: excluded only when a reliably matched source shows an average below 3.0/5 across
+4. **Eligibility**: senior (55+/62+) and income-restricted (affordable, BMR) housing is excluded, based on
+   source flags (Apartment List occupancy types, Redfin senior/income-restricted flags) or an unambiguous
+   property name. Student or military restrictions are shown as warnings rather than excluded.
+5. **Review rating**: excluded only when a reliably matched source shows an average below 3.0/5 across
    at least 3 reviews. One review, no reviews, or a weakly matched source never excludes. When credible
    sources disagree by a star or more, the property is kept and flagged as conflicting.
+
+Properties that fail a filter stay in the database with their reasons and are listed on the UI's
+"Excluded properties" page, so nothing disappears silently.
 
 **Price handling.** Base rent, the source's published total, required monthly fees, lease term,
 availability date, promotions, and timestamps are stored per observation. The estimated monthly total
@@ -186,12 +192,19 @@ open a documented Google Maps directions URL and are not presented as evidence.
 
 ## Known limitations
 
+- **What a typical run looks like (October 3, 2026).** Apartment List surfaced 639 properties across the 18
+  cities; 153 had a studio or one-bedroom at or below $3,150 and were fetched (161 requests, no rate
+  limiting); 67 passed every hard filter. Only 10 review texts exist across those 67, so most properties are
+  scored on commute and city-level safety alone, at low overall confidence — the UI says so on every card.
 - **Thin review coverage.** Without API keys, the only reachable review source is Apartment List's
   verified reviews, which are sparse (often zero to a few per property, and some come from people who
   toured rather than lived there). Most noise, management, pest, and safety categories will honestly
   read N/A. Adding a Google Maps key enables Google ratings and up to 5 reviews per property.
 - **No rush-hour data** without a traffic-aware routing key; commute scores use free-flow time.
 - **City-level crime data** cannot distinguish neighborhoods within large cities such as San Jose.
+- **Redfin is challenge-gated.** Its bot protection (AWS WAF) started challenging plain requests mid-run.
+  Solving that challenge would mean circumventing anti-bot measures, so Redfin is effectively a
+  best-effort source and cross-source price conflicts will be rare until another listing source is added.
 - **Coverage** is limited to what Apartment List and Redfin list; major sites that block automated
   access are not searched.
 - **Site changes.** Collectors parse embedded page data; a site redesign can break a collector. Runs
