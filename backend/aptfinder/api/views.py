@@ -120,24 +120,28 @@ def monthly_cost(ctx: PropertyContext) -> s.MonthlyCost:
     if not qualifying:
         return s.MonthlyCost(base_rent_min=None, confirmed_required_fees=None, est_total_min=None, unknown_required=unknown_required, unclear_recurring=unclear)
 
-    property_level_required = sum(f.amount_monthly or 0 for f in ctx.fees if f.mandatory and f.recurring and f.amount_monthly)
-    best_total = None
-    best_fees = None
+    declared_property_fees = [f.amount_monthly for f in ctx.fees if f.mandatory and f.recurring and f.amount_monthly]
+    best: tuple[float, float | None] | None = None
     for state in qualifying:
         obs = state.observation
         if obs.required_fees_monthly is not None:
             # The source already folded its mandatory monthly fees into the published total; adding
             # fee-text items again would double count them.
             fees = obs.required_fees_monthly
+        elif declared_property_fees:
+            fees = float(sum(declared_property_fees))
         else:
-            fees = property_level_required
-        total = obs.base_rent_min + fees
-        if best_total is None or total < best_total:
-            best_total, best_fees = total, fees
+            fees = None
+        total = obs.base_rent_min + (fees or 0)
+        if best is None or total < best[0]:
+            best = (total, fees)
+    total, fees = best
+    if fees is None:
+        unknown_required = ["Required monthly fees are not published by the listing source"] + unknown_required
     return s.MonthlyCost(
         base_rent_min=min(q.observation.base_rent_min for q in qualifying),
-        confirmed_required_fees=round(best_fees, 2) if best_fees is not None else None,
-        est_total_min=round(best_total, 2) if best_total is not None else None,
+        confirmed_required_fees=round(fees, 2) if fees is not None else None,
+        est_total_min=round(total, 2),
         unknown_required=unknown_required,
         unclear_recurring=unclear,
     )

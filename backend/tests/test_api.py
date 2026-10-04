@@ -99,3 +99,27 @@ def test_meta_reports_office_and_search(client):
     meta = client.get("/api/meta").json()
     assert meta["office"]["address"] == "242 Humboldt Ct, Sunnyvale, CA 94089"
     assert meta["search"] == {"min_rent": 2500, "max_rent": 3000, "unit_types": ["studio", "1br"]}
+
+
+def test_undisclosed_required_fees_are_unknown_not_zero(client):
+    from aptfinder.collectors.types import CollectedListing, CollectedUnit
+
+    synthetic = CollectedListing(
+        source_id="redfin", source_listing_id="rf-test", url="https://www.redfin.com/CA/Sunnyvale/x/apartment/9",
+        name="Synthetic Fee Test", street_address="10 Elm St", city="Sunnyvale", state="CA", zip="94086",
+        lat=37.37, lon=-122.03, fetch=FetchResult("u", "u", 200, "", utcnow(), False, "sha-fee", "p"),
+        units=[CollectedUnit("unit:a", "unit", "A", None, 1, 1.0, 600, 600, 2800, 2800)],
+    )
+    with session_scope() as session:
+        prop, _ = upsert_listing(session, synthetic, None)
+        apply_hard_filters(session, get_settings(), utcnow())
+        pid = prop.id
+    cost = client.get(f"/api/properties/{pid}").json()["monthly_cost"]
+    assert cost["confirmed_required_fees"] is None
+    assert cost["est_total_min"] == 2800
+    assert "Required monthly fees are not published by the listing source" in cost["unknown_required"]
+
+    declared = client.get("/api/properties").json()["items"]
+    central = next(i for i in declared if i["name"] == "Central Park Apartments")
+    detail = client.get(f"/api/properties/{central['id']}").json()
+    assert detail["monthly_cost"]["confirmed_required_fees"] == 0
