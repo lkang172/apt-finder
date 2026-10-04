@@ -135,3 +135,38 @@ def test_senior_and_income_restricted_housing_excluded(restrictions, name, exclu
     from aptfinder.filters import excluded_eligibility
 
     assert (excluded_eligibility(restrictions, name) is not None) is excluded
+
+
+@pytest.mark.parametrize(
+    ("names", "restricted"),
+    [
+        (("A5 Income Protected", None), True),
+        (("One Bedroom, One Bath Income Restricted", None), True),
+        (("S1 BMR", "101"), True),
+        (("1x1 - 80% AMI", None), True),
+        (("Plan A Affordable", None), True),
+        (("1 Bed 1 Bath", "58"), False),
+        (("Amiable Plan", None), False),
+        ((None, None), False),
+    ],
+)
+def test_income_restricted_units(names, restricted):
+    from aptfinder.filters import is_restricted_unit
+
+    assert is_restricted_unit(*names) is restricted
+
+
+@pytest.mark.parametrize(
+    ("name", "url", "hotel"),
+    [
+        ("San Jose - Sunnyvale", "https://extendedstayamerica.com/hotels/ca/san-jose/sunnyvale", True),
+        ("San Jose - Airport", "http://www.extendedstayamerica.com/hotels/CA/san-jose/airport", True),
+        ("Extended Stay Fremont", None, True),
+        ("Central Park Apartments", "https://www.centralparkaptliving.com/", False),
+        ("Staybridge Lofts", "https://staybridgelofts.com/", False),
+    ],
+)
+def test_extended_stay_hotels(name, url, hotel):
+    from aptfinder.filters import extended_stay_hotel
+
+    assert (extended_stay_hotel(name, url) is not None) is hotel

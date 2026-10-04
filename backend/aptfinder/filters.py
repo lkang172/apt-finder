@@ -8,14 +8,39 @@ RATING_CONFLICT_GAP = 1.0
 
 
 EXCLUDED_ELIGIBILITY = re.compile(
-    r"\b(senior|age[- ]restricted|\d{2}\s*\+|affordable|income[- ](?:restricted|qualified|capped|limits?)|"
+    r"\b(senior|age[- ]restricted|\d{2}\s*\+|affordable|income[- ](?:restricted|qualified|capped|protected|limits?)|"
     r"below[- ]market[- ]rate|bmr|low[- ]income)(?![a-z])",
     re.I,
 )
 EXCLUDED_NAME_PATTERN = re.compile(
-    r"\b(senior|age\s*55|55\s*\+|62\s*\+|affordable housing|income[- ]restricted|below[- ]market[- ]rate|bmr|low[- ]income)(?![a-z])",
+    r"\b(senior|age\s*55|55\s*\+|62\s*\+|affordable housing|income[- ](?:restricted|protected)|below[- ]market[- ]rate|bmr|low[- ]income)(?![a-z])",
     re.I,
 )
+
+
+RESTRICTED_UNIT_PATTERN = re.compile(
+    r"\b(income|bmr|below[- ]market|affordable|senior|\d{2}\s*%\s*ami|ami)(?![a-z])",
+    re.I,
+)
+EXTENDED_STAY_DOMAINS = (
+    "extendedstayamerica.com", "extendedstay.com", "intownsuites.com", "woodspring.com", "sonesta.com",
+    "staybridge.com", "candlewoodsuites.com", "homewoodsuites.com", "home2suites.com", "residenceinn.com",
+    "towneplacesuites.com", "hyatthouse.com",
+)
+
+
+def is_restricted_unit(*names: str | None) -> bool:
+    """Floor plans or units named as income-restricted (e.g. "A5 Income Protected") never qualify."""
+    return any(name and RESTRICTED_UNIT_PATTERN.search(name) for name in names)
+
+
+def extended_stay_hotel(name: str | None, website_url: str | None) -> str | None:
+    host = (website_url or "").lower().split("//")[-1].split("/")[0]
+    if any(host == d or host.endswith("." + d) for d in EXTENDED_STAY_DOMAINS):
+        return f"Official website is an extended-stay hotel ({host})"
+    if name and re.search(r"\bextended[- ]stay\b", name, re.I):
+        return f"Name indicates an extended-stay hotel: {name}"
+    return None
 
 
 def excluded_eligibility(restrictions: list[str], name: str | None) -> str | None:

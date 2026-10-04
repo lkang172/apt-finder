@@ -151,3 +151,17 @@ def test_outside_region_is_excluded(session):
     prop, _ = upsert_listing(session, sf, run_id=None, now=FETCHED)
     status = evaluate_property_status(session, prop, SETTINGS, FETCHED + timedelta(hours=1))
     assert status.status == "excluded" and status.reasons[0]["filter"] == "geography"
+
+
+def test_income_restricted_units_do_not_qualify(session):
+    units = [CollectedUnit("unit:bmr", "unit", "5", "A5 Income Protected", 1, 1.0, 600, 600, 2400, 2400)]
+    prop, _ = upsert_listing(session, synthetic_redfin("20 Oak St", units, 37.37, -122.03, "bmr1"), run_id=None, now=FETCHED)
+    status = evaluate_property_status(session, prop, SETTINGS, FETCHED + timedelta(hours=1))
+    assert status.status == "excluded"
+    assert "income-restricted" in status.reasons[0]["explanation"]
+
+    market = [*units, CollectedUnit("unit:mkt", "unit", "6", "A1", 1, 1.0, 600, 600, 2700, 2700)]
+    prop2, _ = upsert_listing(session, synthetic_redfin("30 Oak St", market, 37.38, -122.04, "bmr2"), run_id=None, now=FETCHED)
+    status2 = evaluate_property_status(session, prop2, SETTINGS, FETCHED + timedelta(hours=1))
+    assert status2.status == "included"
+    assert [s.unit.label for s in status2.price.qualifying] == ["6"]

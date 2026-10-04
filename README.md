@@ -153,8 +153,12 @@ updates records instead of duplicating them, and the raw page behind each record
    verified.
 4. **Eligibility**: senior (55+/62+) and income-restricted (affordable, BMR) housing is excluded, based on
    source flags (Apartment List occupancy types, Redfin senior/income-restricted flags) or an unambiguous
-   property name. Student or military restrictions are shown as warnings rather than excluded.
-5. **Review rating**: excluded only when a reliably matched source shows an average below 3.0/5 across
+   property name. Individual units on income-restricted floor plans ("Income Protected", "BMR", "80% AMI")
+   never count toward the price filter, so a building qualifies only through market-rate units. Student or
+   military restrictions are shown as warnings rather than excluded.
+5. **Property type**: extended-stay hotels (identified by their official website, e.g.
+   extendedstayamerica.com) are excluded; they arrive through partner feeds but are not apartments.
+6. **Review rating**: excluded only when a reliably matched source shows an average below 3.0/5 across
    at least 3 reviews. One review, no reviews, or a weakly matched source never excludes. When credible
    sources disagree by a star or more, the property is kept and flagged as conflicting.
 

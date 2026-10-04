@@ -14,6 +14,8 @@ from aptfinder.filters import (
     detect_price_conflicts,
     evaluate_rating_filter,
     excluded_eligibility,
+    extended_stay_hotel,
+    is_restricted_unit,
     is_allowed_unit_type,
     is_price_fresh,
     rent_in_range,
@@ -29,10 +31,11 @@ class UnitPriceState:
     current: bool
     fresh: bool
     in_range: bool
+    restricted: bool = False
 
     @property
     def qualifies(self) -> bool:
-        return self.current and self.fresh and self.in_range
+        return self.current and self.fresh and self.in_range and not self.restricted
 
 
 @dataclass
@@ -83,6 +86,7 @@ def latest_unit_states(session: Session, prop: Property, settings: Settings, now
                 fresh=is_price_fresh(observation.collected_at, observation.source_updated_at, now, freshness, source_max_age),
                 in_range=is_allowed_unit_type(unit.beds, settings.allowed_bedrooms)
                 and rent_in_range(observation.base_rent_min, observation.base_rent_max, settings.min_rent, settings.max_rent),
+                restricted=is_restricted_unit(unit.floorplan_name, unit.label),
             )
         )
     return states
@@ -92,7 +96,7 @@ def _price_points(states: list[UnitPriceState], allowed_beds: tuple[int, ...]) -
     grouped: dict[tuple[str, int, int | None], list[UnitPriceState]] = {}
     for state in states:
         obs = state.observation
-        if not (state.current and state.fresh) or state.unit.beds not in allowed_beds or obs.base_rent_min is None:
+        if not (state.current and state.fresh) or state.restricted or state.unit.beds not in allowed_beds or obs.base_rent_min is None:
             continue
         grouped.setdefault((state.source_id, state.unit.beds, state.unit.sqft_min), []).append(state)
     points = []
@@ -120,9 +124,12 @@ def verify_prices(session: Session, prop: Property, settings: Settings, now: dat
         if conflicts:
             return PriceVerification("conflict", states, conflicts, "Qualifying price found, but sources disagree on comparable units")
         return PriceVerification("verified", states, conflicts, "Fresh studio/1BR price within range")
-    if any(s.in_range and s.current for s in states):
+    if any(s.in_range and s.current and not s.restricted for s in states):
         return PriceVerification("stale", states, conflicts, "Only stale pricing falls within range; re-verification required")
-    return PriceVerification("none", states, conflicts, f"No studio/1BR unit with advertised base rent within ${settings.min_rent:,}–${settings.max_rent:,}")
+    reason = f"No studio/1BR unit with advertised base rent within ${settings.min_rent:,}–${settings.max_rent:,}"
+    if any(s.in_range and s.current and s.restricted for s in states):
+        reason += " (in-range units are income-restricted and excluded)"
+    return PriceVerification("none", states, conflicts, reason)
 
 
 def latest_ratings(session: Session, prop: Property) -> list[RatingSummary]:
@@ -148,6 +155,12 @@ def evaluate_property_status(session: Session, prop: Property, settings: Setting
         )
         for r in (e.data or {}).get("restrictions", [])
     ]
+    website = session.scalars(
+        select(Evidence).where(Evidence.property_id == prop.id, Evidence.title == "Official property website")
+    ).first()
+    hotel = extended_stay_hotel(prop.name, website.source_url if website else None)
+    if hotel:
+        return PropertyStatus("excluded", [{"filter": "property_type", "explanation": f"Not an apartment — {hotel}"}])
     listing_names = [ls.name for ls in prop.listing_sources if ls.name]
     eligibility = excluded_eligibility(restrictions, " / ".join(dict.fromkeys([prop.name, *listing_names])))
     if eligibility:
