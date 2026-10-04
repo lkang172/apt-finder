@@ -236,3 +236,17 @@ def test_routes_api_is_never_used_unless_explicitly_enabled(monkeypatch):
     office = Office("o", "a", 37.4, -122.0, "x")
     service.route_many({1: (37.3, -122.0)}, office, KEYED, FakeClient())
     assert used == []
+
+
+def test_google_brief_includes_keyword_comments_summary(central_park, monkeypatch):
+    factory = fake_factory(1.6, 8, COCKROACH_TEXTS, None)
+    with session_scope() as session:
+        prop = session.get(Property, central_park)
+        collect_google_reviews(session, KEYED, [prop], utcnow(), lambda s, m: None, client_factory=factory)
+    monkeypatch.setattr(app_module, "get_settings", lambda: KEYED)
+    detail = TestClient(app_module.app).get(f"/api/properties/{central_park}").json()
+    google = detail["google"]
+    assert google["summary"] is None
+    assert google["comments_summary"].startswith("From the 5 Google review texts returned (of 8 Google ratings)")
+    assert "cockroach" in google["comments_summary"].lower()
+    assert "not AI-generated" in google["comments_summary_method"]

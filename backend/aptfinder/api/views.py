@@ -20,8 +20,11 @@ from aptfinder.db.models import (
     OverallScore,
     Property,
     Source,
+    utcnow,
 )
+from aptfinder.evaluation import review_inputs
 from aptfinder.evaluators.base import CATEGORIES
+from aptfinder.evaluators.comments_summary import summarize_comments
 from aptfinder.filters import RatingInput, evaluate_rating_filter
 from aptfinder.scoring import CATEGORY_LABELS
 from aptfinder.verification import PriceVerification, latest_ratings, verify_prices
@@ -175,7 +178,7 @@ def review_brief(session: Session, prop: Property) -> tuple[s.ReviewBrief, s.Rat
 def google_brief(session: Session, prop: Property, settings: Settings) -> s.GoogleReviewsBrief:
     match = session.get(GooglePlaceMatch, prop.id)
     empty = dict(rating=None, count=None, maps_url=None, summary=None, summary_disclosure=None, summary_flag_url=None,
-                 match_confidence=None, observed_at=None)
+                 comments_summary=None, comments_summary_method=None, match_confidence=None, observed_at=None)
     if match is None:
         if not settings.google_maps_api_key:
             return s.GoogleReviewsBrief(status="not_configured", explanation="Google reviews not checked — Google Maps API key not configured", **empty)
@@ -190,6 +193,8 @@ def google_brief(session: Session, prop: Property, settings: Settings) -> s.Goog
         .order_by(Evidence.collected_at.desc())
     ).first()
     count = rating.count if rating else None
+    google_reviews = [r for r in review_inputs(session, prop) if r.source_id == "google_places" and not r.is_summary]
+    comments = summarize_comments(google_reviews, count, utcnow())
     if rating and rating.average is not None and count:
         explanation = f"{rating.average:.1f} stars across {count} Google ratings; Google returns at most 5 review texts"
     else:
@@ -202,6 +207,8 @@ def google_brief(session: Session, prop: Property, settings: Settings) -> s.Goog
         summary=summary.content if summary else None,
         summary_disclosure=(summary.data or {}).get("summary_disclosure") if summary else None,
         summary_flag_url=(summary.data or {}).get("flag_url") if summary else None,
+        comments_summary=comments.text if comments else None,
+        comments_summary_method=comments.method if comments else None,
         match_confidence=match.match_confidence if match.match_confidence in ("exact", "probable", "weak") else None,
         observed_at=match.checked_at,
         explanation=explanation,

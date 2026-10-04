@@ -43,6 +43,8 @@ class GoogleReviewsBrief(BaseModel):
     summary: str | None
     summary_disclosure: str | None
     summary_flag_url: str | None
+    comments_summary: str | None
+    comments_summary_method: str | None
     match_confidence: Literal["exact", "probable", "weak"] | None
     observed_at: datetime | None
     explanation: str

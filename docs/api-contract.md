@@ -39,6 +39,8 @@ interface GoogleReviewsBrief {
   summary: string | null;                 // Google's AI-generated summary of the reviews, verbatim
   summary_disclosure: string | null;      // e.g. "Summarized with Gemini" — always show next to the summary
   summary_flag_url: string | null;        // Google's "report this summary" link, show when present
+  comments_summary: string | null;        // Apt Finder's keyword-based summary of the Google review texts returned
+  comments_summary_method: string | null; // how it was made (not AI) — show in small print next to it
   match_confidence: "exact" | "probable" | "weak" | null;
   observed_at: string | null;
   explanation: string;                    // human-readable status, e.g. why there is no Google data
