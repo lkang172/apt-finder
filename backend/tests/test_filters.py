@@ -114,3 +114,24 @@ def test_no_conflict_when_ranges_overlap_or_plans_differ():
     assert not detect_price_conflicts([a, PricePoint("redfin", 0, 720, 3300, 3300, "https://b")])
     assert not detect_price_conflicts([a, PricePoint("apartment_list", 1, 720, 3300, 3300, "https://c")])
     assert not detect_price_conflicts([a, PricePoint("redfin", 1, 720, 2910, 2910, "https://b")])
+
+
+@pytest.mark.parametrize(
+    ("restrictions", "name", "excluded"),
+    [
+        (["Senior Housing"], "Palmia", True),
+        (["Affordable Housing"], "Hillsdale Garden", True),
+        (["Income-restricted housing"], "X", True),
+        (["Student housing"], "X", False),
+        ([], "Senior Housing- Palmia, Age 55+ Luxury Apartments", True),
+        ([], "Hillsdale Garden - Affordable Housing", True),
+        ([], "Oak Street BMR Apartments", True),
+        ([], "Central Park Apartments", False),
+        ([], "Seniority Plaza Lofts", False),
+        ([], "The 55 Lofts", False),
+    ],
+)
+def test_senior_and_income_restricted_housing_excluded(restrictions, name, excluded):
+    from aptfinder.filters import excluded_eligibility
+
+    assert (excluded_eligibility(restrictions, name) is not None) is excluded

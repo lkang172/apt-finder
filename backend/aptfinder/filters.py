@@ -1,9 +1,31 @@
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 LOW_RATING_THRESHOLD = 3.0
 MIN_REVIEWS_FOR_EXCLUSION = 3
 RATING_CONFLICT_GAP = 1.0
+
+
+EXCLUDED_ELIGIBILITY = re.compile(
+    r"\b(senior|age[- ]restricted|\d{2}\s*\+|affordable|income[- ](?:restricted|qualified|capped|limits?)|"
+    r"below[- ]market[- ]rate|bmr|low[- ]income)(?![a-z])",
+    re.I,
+)
+EXCLUDED_NAME_PATTERN = re.compile(
+    r"\b(senior|age\s*55|55\s*\+|62\s*\+|affordable housing|income[- ]restricted|below[- ]market[- ]rate|bmr|low[- ]income)(?![a-z])",
+    re.I,
+)
+
+
+def excluded_eligibility(restrictions: list[str], name: str | None) -> str | None:
+    """Senior and income-capped housing is excluded by the owner's request; other restrictions are only shown."""
+    for restriction in restrictions:
+        if EXCLUDED_ELIGIBILITY.search(restriction):
+            return f"Listed as {restriction}"
+    if name and EXCLUDED_NAME_PATTERN.search(name):
+        return f"Name indicates restricted eligibility: {name}"
+    return None
 
 
 def is_allowed_unit_type(beds: int | None, allowed: tuple[int, ...] = (0, 1)) -> bool:

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from aptfinder.config import Settings
-from aptfinder.db.models import ListingSource, PriceObservation, Property, RatingSummary, Unit
+from aptfinder.db.models import Evidence, ListingSource, PriceObservation, Property, RatingSummary, Unit
 from aptfinder.filters import (
     PriceConflict,
     PricePoint,
@@ -13,6 +13,7 @@ from aptfinder.filters import (
     RatingInput,
     detect_price_conflicts,
     evaluate_rating_filter,
+    excluded_eligibility,
     is_allowed_unit_type,
     is_price_fresh,
     rent_in_range,
@@ -140,6 +141,17 @@ def evaluate_property_status(session: Session, prop: Property, settings: Setting
     geo = evaluate_location(prop.city, prop.lat, prop.lon)
     if not geo.allowed:
         return PropertyStatus("excluded", [{"filter": "geography", "explanation": geo.reason}])
+
+    restrictions = [
+        r for e in session.scalars(
+            select(Evidence).where(Evidence.property_id == prop.id, Evidence.kind == "listing_fact", Evidence.title == "Eligibility restrictions")
+        )
+        for r in (e.data or {}).get("restrictions", [])
+    ]
+    listing_names = [ls.name for ls in prop.listing_sources if ls.name]
+    eligibility = excluded_eligibility(restrictions, " / ".join([prop.name, *listing_names]))
+    if eligibility:
+        return PropertyStatus("excluded", [{"filter": "eligibility", "explanation": f"Senior or income-restricted housing excluded: {eligibility}"}])
 
     price = verify_prices(session, prop, settings, now)
     if price.status == "none":
