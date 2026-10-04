@@ -165,3 +165,20 @@ def test_income_restricted_units_do_not_qualify(session):
     status2 = evaluate_property_status(session, prop2, SETTINGS, FETCHED + timedelta(hours=1))
     assert status2.status == "included"
     assert [s.unit.label for s in status2.price.qualifying] == ["6"]
+
+
+def test_restriction_label_from_one_source_applies_to_same_unit_elsewhere(session):
+    al_like = synthetic_redfin("40 Oak St", [CollectedUnit("unit:al318", "unit", "318", "liqA6Aaf", 1, 1.0, 902, 902, 2892, 2892)], 37.39, -122.05, "x1")
+    prop, _ = upsert_listing(session, al_like, run_id=None, now=FETCHED)
+    assert evaluate_property_status(session, prop, SETTINGS, FETCHED + timedelta(hours=1)).status == "included"
+
+    official = CollectedListing(
+        source_id="official_site", source_listing_id="jonah:34760", url="https://example-official.com/floorplans/",
+        name="Example Official", street_address="40 Oak St", city="Sunnyvale", state="CA", zip="94087",
+        lat=37.39, lon=-122.05, fetch=fetch("off1"),
+        units=[CollectedUnit("unit:off318", "unit", "#318", "A6-A Income Protected", 1, 1.0, 902, 902, 2892, 2892)],
+    )
+    upsert_listing(session, official, run_id=None, now=FETCHED, property_hint=prop.id)
+    status = evaluate_property_status(session, prop, SETTINGS, FETCHED + timedelta(hours=1))
+    assert status.status == "excluded"
+    assert all(s.restricted for s in status.price.units)

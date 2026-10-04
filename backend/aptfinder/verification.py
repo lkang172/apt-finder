@@ -58,6 +58,11 @@ class PropertyStatus:
     rating: RatingDecision | None = None
 
 
+def _unit_key(label: str | None) -> str | None:
+    digits = "".join(ch for ch in (label or "") if ch.isalnum()).lstrip("#").lower()
+    return digits or None
+
+
 def latest_unit_states(session: Session, prop: Property, settings: Settings, now: datetime) -> list[UnitPriceState]:
     rows = session.execute(
         select(PriceObservation, Unit, ListingSource.source_id)
@@ -89,6 +94,12 @@ def latest_unit_states(session: Session, prop: Property, settings: Settings, now
                 restricted=is_restricted_unit(unit.floorplan_name, unit.label),
             )
         )
+    # Sources label the same apartment differently ("liqA6Aaf" vs "A6-A Income Protected"); if any source
+    # marks a unit number as income-restricted, that unit number is restricted for every source.
+    restricted_keys = {_unit_key(st.unit.label) for st in states if st.restricted and _unit_key(st.unit.label)}
+    for state in states:
+        if not state.restricted and _unit_key(state.unit.label) in restricted_keys:
+            state.restricted = True
     return states
 
 

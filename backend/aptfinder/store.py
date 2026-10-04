@@ -51,7 +51,9 @@ def _property_keys(session: Session) -> list[PropertyKey]:
     ]
 
 
-def resolve_property(session: Session, listing: CollectedListing) -> tuple[Property, str]:
+def resolve_property(session: Session, listing: CollectedListing, property_hint: int | None = None) -> tuple[Property, str]:
+    if property_hint is not None:
+        return session.get(Property, property_hint), "listing came from this property's own website link"
     existing_link = session.scalar(
         select(ListingSource).where(
             ListingSource.source_id == listing.source_id,
@@ -128,11 +130,17 @@ def _price_content(listing: CollectedListing, unit: CollectedUnit) -> str:
     return text
 
 
-def upsert_listing(session: Session, listing: CollectedListing, run_id: int | None, now: datetime | None = None) -> tuple[Property, ListingSource]:
+def upsert_listing(
+    session: Session,
+    listing: CollectedListing,
+    run_id: int | None,
+    now: datetime | None = None,
+    property_hint: int | None = None,
+) -> tuple[Property, ListingSource]:
     now = now or utcnow()
     collected_at = listing.fetch.fetched_at
     raw = record_raw_document(session, listing.source_id, listing)
-    prop, _reason = resolve_property(session, listing)
+    prop, _reason = resolve_property(session, listing, property_hint)
     _refresh_property_fields(prop, listing, now)
 
     link = session.scalar(

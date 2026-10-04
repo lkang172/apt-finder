@@ -11,6 +11,8 @@ from aptfinder.db.models import Base, Source
 KNOWN_SOURCES: tuple[tuple[str, str, str, str | None], ...] = (
     ("apartment_list", "Apartment List", "listing", "https://www.apartmentlist.com"),
     ("redfin", "Redfin Rentals", "listing", "https://www.redfin.com"),
+    ("trulia", "Trulia Rentals (Zillow feed)", "listing", "https://www.trulia.com"),
+    ("official_site", "Official property website", "listing", None),
     ("google_places", "Google Maps (Places API)", "review", "https://maps.google.com"),
     ("osrm", "OSRM routing (OpenStreetMap data)", "routing", "https://project-osrm.org"),
     ("google_routes", "Google Routes API", "routing", "https://developers.google.com/maps/documentation/routes"),

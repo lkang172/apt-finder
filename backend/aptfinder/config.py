@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     apartment_list_min_interval_s: float = 4.0
     redfin_min_interval_s: float = 8.0
     redfin_max_pages_per_city: int = 3
+    trulia_min_interval_s: float = 15.0
+    trulia_max_pages_per_city: int = 3
+    shared_widget_min_interval_s: float = 10.0
     osrm_min_interval_s: float = 1.5
 
     google_maps_api_key: str = ""
