@@ -3,7 +3,7 @@ from datetime import timedelta
 import httpx
 import pytest
 
-from aptfinder.http import FetchError, PoliteClient, RobotsDisallowed, SourceBlocked
+from aptfinder.http import FetchError, PoliteClient, RobotsDisallowed, SourceBlocked, parse_robots, robots_allows
 
 ROBOTS = "User-agent: *\nDisallow: /private/\n"
 
@@ -205,3 +205,14 @@ def test_small_page_with_waf_script_is_a_challenge(tmp_path):
     client, _ = make_client(tmp_path, handler)
     with pytest.raises(SourceBlocked):
         client.get("https://example.com/a", ttl=timedelta(hours=1))
+
+
+def test_robots_group_survives_blank_line_and_supports_wildcards():
+    text = "User-agent: *\n\nDisallow: /api/\nDisallow: /*_xy/\nAllow: /api/public$\n\nUser-agent: apt-finder\nDisallow: /mine/\n"
+    rules = parse_robots(text, "Mozilla/5.0")
+    assert not robots_allows(rules, "https://example.com/api/x")
+    assert not robots_allows(rules, "https://example.com/for_rent/37.3,-122_xy/")
+    assert robots_allows(rules, "https://example.com/api/public")
+    assert not robots_allows(rules, "https://example.com/api/public/more")
+    own = parse_robots(text, "apt-finder/0.1 (contact)")
+    assert not robots_allows(own, "https://example.com/mine/a") and robots_allows(own, "https://example.com/api/x")

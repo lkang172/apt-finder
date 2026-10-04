@@ -9,13 +9,11 @@ import pytest
 from aptfinder.collectors.trulia import (
     TruliaCollector,
     parse_building_page,
-    parse_robots_rules,
     parse_search_page,
-    robots_allows,
 )
 from aptfinder.collectors.types import DiscoveryStub
 from aptfinder.config import SEARCH_CITIES
-from aptfinder.http import FetchResult, PoliteClient, SourceBlocked
+from aptfinder.http import FetchResult, PoliteClient, SourceBlocked, parse_robots, robots_allows
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FETCH = FetchResult("u", "u", 200, "", datetime(2026, 10, 4, tzinfo=UTC), False, "sha", "path")
@@ -239,7 +237,7 @@ def test_robots_rules_follow_rfc_9309_where_urllib_does_not():
     stdlib = RobotFileParser()
     stdlib.parse(ROBOTS.splitlines())
     assert stdlib.can_fetch("Mozilla/5.0", "https://www.trulia.com/api/x")
-    rules = parse_robots_rules(ROBOTS)
+    rules = parse_robots(ROBOTS, "Mozilla/5.0")
     assert not robots_allows(rules, "https://www.trulia.com/api/x")
     assert not robots_allows(rules, "https://www.trulia.com/building/some-building_li")
     assert not robots_allows(rules, "https://www.trulia.com/for_rent/Sunnyvale,CA/37.3,-122.0_xy/")

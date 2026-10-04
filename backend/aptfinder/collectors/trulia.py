@@ -4,21 +4,19 @@ import math
 import re
 from collections.abc import Iterator
 from datetime import datetime, timedelta
-from functools import lru_cache
 from typing import Any
 from urllib.parse import urlsplit
 
 from aptfinder.collectors.page_data import as_float, as_int, json_ld_blocks, parse_timestamp, walk
 from aptfinder.collectors.types import CollectedFact, CollectedListing, CollectedUnit, DiscoveryStub
 from aptfinder.config import SearchCity
-from aptfinder.http import FetchError, FetchResult, PoliteClient, SourceBlocked
+from aptfinder.http import FetchResult, PoliteClient
 from aptfinder.normalize import MONEY, ParsedFee, classify_fee_type, extract_unit_number
 
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://www.trulia.com"
 SOURCE_ID = "trulia"
-ROBOTS_URL = f"{BASE_URL}/robots.txt"
 # Matches the pipeline's stub-prefilter margin so the search never hides a listing the prefilter would keep.
 PRICE_CEILING_MARGIN = 150
 NEXT_DATA = re.compile(r'<script id="__NEXT_DATA__" type="application/json"[^>]*>(.*?)</script>', re.S)
@@ -45,50 +43,6 @@ def next_data(html: str) -> dict[str, Any] | None:
     except json.JSONDecodeError:
         return None
     return data if isinstance(data, dict) else None
-
-
-def parse_robots_rules(text: str) -> list[tuple[bool, str]]:
-    """Allow/Disallow rules that apply to us (the `*` group), grouped as RFC 9309 specifies.
-
-    urllib.robotparser, which PoliteClient uses, drops Trulia's entire `*` group because a blank line
-    separates its User-agent line from its rules, and it does not understand `*` wildcards, so Trulia's
-    robots.txt must be enforced here."""
-    rules: list[tuple[bool, str]] = []
-    agents: list[str] = []
-    in_rules = False
-    for raw in text.splitlines():
-        line = raw.split("#", 1)[0].strip()
-        if ":" not in line:
-            continue
-        field, value = (part.strip() for part in line.split(":", 1))
-        field = field.lower()
-        if field == "user-agent":
-            if in_rules:
-                agents, in_rules = [], False
-            agents.append(value)
-        elif field in ("allow", "disallow"):
-            in_rules = True
-            if "*" in agents and value:
-                rules.append((field == "allow", value))
-    return rules
-
-
-@lru_cache(maxsize=1024)
-def _robots_pattern(pattern: str) -> re.Pattern[str]:
-    anchored = pattern.endswith("$")
-    body = re.escape(pattern[:-1] if anchored else pattern).replace(r"\*", ".*")
-    return re.compile(body + ("$" if anchored else ""))
-
-
-def robots_allows(rules: list[tuple[bool, str]], url: str) -> bool:
-    """Longest matching rule wins; Allow wins a tie (RFC 9309)."""
-    parts = urlsplit(url)
-    target = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
-    best: tuple[int, bool] | None = None
-    for allow, pattern in rules:
-        if _robots_pattern(pattern).match(target) and (best is None or len(pattern) > best[0] or (len(pattern) == best[0] and allow)):
-            best = (len(pattern), allow)
-    return best is None or best[1]
 
 
 def listing_id_from_url(url: str) -> str | None:
@@ -580,7 +534,6 @@ class TruliaCollector:
         self.max_pages = max_pages
         self.max_rent = max_rent
         self.allowed_beds = allowed_beds
-        self._robots_rules: list[tuple[bool, str]] | None = None
 
     def search_url(self, city: SearchCity, page: int = 1) -> str:
         # No lower price bound: Trulia filters prices per unit, but a ceiling alone can never hide a qualifying unit.
@@ -613,16 +566,7 @@ class TruliaCollector:
         return parse_building_page(result.text, stub.url, result)
 
     def _allowed(self, url: str) -> bool:
-        if self._robots_rules is None:
-            try:
-                robots = self.client.get(ROBOTS_URL, ttl=timedelta(days=1), accept="text/plain")
-                self._robots_rules = parse_robots_rules(robots.text)
-            except SourceBlocked:
-                raise
-            except FetchError as exc:
-                log.warning("Could not read Trulia robots.txt (%s); relying on PoliteClient's robots handling", exc)
-                self._robots_rules = []
-        if robots_allows(self._robots_rules, url):
+        if self.client.allowed(url):
             return True
         log.info("Skipping %s: disallowed by Trulia robots.txt", url)
         return False

@@ -3,17 +3,20 @@ import hashlib
 import json
 import logging
 import random
+import re
 import time
 from collections.abc import Callable
+from functools import lru_cache
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
-from urllib.robotparser import RobotFileParser
 
 import httpx
 
 log = logging.getLogger(__name__)
+
+RobotsRules = list[tuple[bool, str]]
 
 BLOCK_PAGE_MARKERS = (
     "<title>Client Challenge</title>",
@@ -38,6 +41,51 @@ def looks_like_challenge(text: str) -> bool:
     if any(marker in text for marker in BLOCK_PAGE_MARKERS):
         return True
     return len(text) < INTERSTITIAL_MAX_CHARS and any(hint in text for hint in INTERSTITIAL_HINTS)
+
+
+def parse_robots(text: str, user_agent: str = "*") -> RobotsRules:
+    """Allow/Disallow rules for our crawler per RFC 9309: the group naming our product token, else the `*` group.
+
+    Unlike urllib.robotparser, blank lines do not end a group and `*`/`$` patterns are supported."""
+    token = user_agent.split("/", 1)[0].strip().lower()
+    groups: dict[str, RobotsRules] = {}
+    agents: list[str] = []
+    in_rules = False
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if ":" not in line:
+            continue
+        field, value = (part.strip() for part in line.split(":", 1))
+        field = field.lower()
+        if field == "user-agent":
+            if in_rules:
+                agents, in_rules = [], False
+            agents.append(value.lower())
+        elif field in ("allow", "disallow"):
+            in_rules = True
+            for agent in agents:
+                rules = groups.setdefault(agent, [])
+                if value:
+                    rules.append((field == "allow", value))
+    return groups[token] if token in groups else groups.get("*", [])
+
+
+@lru_cache(maxsize=1024)
+def _robots_pattern(pattern: str) -> re.Pattern[str]:
+    anchored = pattern.endswith("$")
+    body = re.escape(pattern[:-1] if anchored else pattern).replace(r"\*", ".*")
+    return re.compile(body + ("$" if anchored else ""))
+
+
+def robots_allows(rules: RobotsRules, url: str) -> bool:
+    """Longest matching rule wins; Allow wins a tie (RFC 9309)."""
+    parts = urlsplit(url)
+    target = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
+    best: tuple[int, bool] | None = None
+    for allow, pattern in rules:
+        if _robots_pattern(pattern).match(target) and (best is None or len(pattern) > best[0] or (len(pattern) == best[0] and allow)):
+            best = (len(pattern), allow)
+    return best is None or best[1]
 
 
 class FetchError(Exception):
@@ -87,7 +135,7 @@ class PoliteClient:
         self._sleep = sleep
         self._clock = clock
         self._last_request: dict[str, float] = {}
-        self._robots: dict[str, RobotFileParser | None] = {}
+        self._robots: dict[str, RobotsRules | None] = {}
         self.blocked_hosts: dict[str, str] = {}
         self.network_requests = 0
         self._client = httpx.Client(
@@ -185,15 +233,19 @@ class PoliteClient:
                 self._sleep(wait)
         self._last_request[host] = self._clock()
 
+    def allowed(self, url: str) -> bool:
+        """Whether robots.txt permits fetching `url` (loads and caches the host's robots.txt)."""
+        return self._robots_allows(url)
+
     def _robots_allows(self, url: str) -> bool:
         parts = urlsplit(url)
         host = parts.netloc
         if host not in self._robots:
             self._robots[host] = self._load_robots(f"{parts.scheme}://{host}/robots.txt")
-        parser = self._robots[host]
-        return True if parser is None else parser.can_fetch(self.user_agent, url)
+        rules = self._robots[host]
+        return True if rules is None else robots_allows(rules, url)
 
-    def _load_robots(self, robots_url: str) -> RobotFileParser | None:
+    def _load_robots(self, robots_url: str) -> RobotsRules | None:
         cached = self._read_cache(robots_url, timedelta(days=1))
         if cached is None:
             host = urlsplit(robots_url).netloc
@@ -209,13 +261,9 @@ class PoliteClient:
             if 400 <= response.status_code < 500:
                 return None
             if response.status_code >= 500:
-                parser = RobotFileParser()
-                parser.parse(["User-agent: *", "Disallow: /"])
-                return parser
+                return [(False, "/")]
             cached = self._write_cache(robots_url, str(response.url), response.status_code, response.text)
-        parser = RobotFileParser()
-        parser.parse(cached.text.splitlines())
-        return parser
+        return parse_robots(cached.text, self.user_agent)
 
     def _cache_meta_path(self, url: str) -> Path:
         return self.cache_dir / f"{hashlib.sha256(url.encode()).hexdigest()}.json"
