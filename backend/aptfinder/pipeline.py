@@ -13,7 +13,11 @@ from aptfinder.config import SEARCH_CITIES, SearchCity, Settings
 from aptfinder.db.models import CollectionRun, Property, utcnow
 from aptfinder.geo import CORRIDOR
 from aptfinder.http import FetchError, PoliteClient, SourceBlocked
+from aptfinder.enrichment import attach_area_safety, collect_google_reviews, compute_commutes
+from aptfinder.evaluation import area_input, commute_input, persist_assessments, rating_inputs, review_inputs
+from aptfinder.evaluators import evaluate_all
 from aptfinder.store import upsert_listing
+from aptfinder.synthesis import DeterministicSynthesizer, Synthesizer, apply_synthesis
 from aptfinder.verification import evaluate_property_status
 
 log = logging.getLogger(__name__)
@@ -133,6 +137,36 @@ def apply_hard_filters(session: Session, settings: Settings, now: datetime) -> d
     return counts
 
 
+def _included(session: Session) -> list[Property]:
+    return list(session.scalars(select(Property).where(Property.status == "included").order_by(Property.id)))
+
+
+def enrich_and_evaluate(
+    session: Session,
+    ctx: RunContext,
+    api_client: PoliteClient,
+    now: datetime,
+    synthesizer: Synthesizer | None = None,
+) -> None:
+    settings = ctx.settings
+    included = _included(session)
+    if settings.google_maps_api_key and included:
+        ctx.bump("google_places.properties", collect_google_reviews(session, settings, included, now, ctx.note))
+        apply_hard_filters(session, settings, now)
+        included = _included(session)
+    ctx.bump("commutes_computed", compute_commutes(session, api_client, settings, included, ctx.note))
+    ctx.bump("area_safety_attached", attach_area_safety(session, api_client, settings, included, ctx.note))
+    synthesizer = synthesizer or DeterministicSynthesizer()
+    for prop in included:
+        reviews = review_inputs(session, prop)
+        drafts = evaluate_all(reviews, rating_inputs(session, prop), commute_input(session, prop), area_input(session, prop), now)
+        quality = drafts.pop("review_quality", None)
+        apply_synthesis(synthesizer, drafts, reviews)
+        persist_assessments(session, prop, drafts, ctx.run.id, now, review_quality=quality)
+        session.commit()
+        ctx.bump("properties_evaluated")
+
+
 def start_run(session: Session) -> CollectionRun:
     run = CollectionRun(started_at=utcnow(), status="running")
     session.add(run)
@@ -165,6 +199,7 @@ def execute_run(
     from aptfinder.db.session import session_scope
 
     client = make_client(settings)
+    api_client = make_api_client(settings)
     with session_scope() as session:
         run = session.get(CollectionRun, run_id)
         ctx = RunContext(run, settings, client)
@@ -172,14 +207,17 @@ def execute_run(
             if not skip_collection:
                 collect_listings(session, ctx, resolve_cities(cities), list(sources))
             ctx.stats.update({f"status.{k}": v for k, v in apply_hard_filters(session, settings, utcnow()).items()})
-            ctx.stats["network_requests"] = client.network_requests
+            enrich_and_evaluate(session, ctx, api_client, utcnow())
+            ctx.stats["network_requests"] = client.network_requests + api_client.network_requests
             finish_run(session, ctx)
         except Exception as exc:
             log.exception("Run %s failed", run_id)
+            session.rollback()
             ctx.note("aptfinder", f"Run failed: {exc}")
-            ctx.stats["network_requests"] = client.network_requests
+            ctx.stats["network_requests"] = client.network_requests + api_client.network_requests
             finish_run(session, ctx, failed=True)
             raise
         finally:
             client.close()
+            api_client.close()
     return ctx
