@@ -36,6 +36,24 @@ uv run python -m aptfinder run --skip-collection                   # re-filter a
 
 You can also start a refresh from the UI ("Refresh data"), which calls `POST /api/runs`.
 
+### Google ratings and reviews (strongly recommended)
+
+Google Maps is the most complete review source for these properties. With a key, every listing that
+passes the price, location, and eligibility filters is matched to its Google Maps place (by name,
+address, and a ≤150 m location check), and the app stores the star rating, total review count, Google's
+AI summary of all reviews ("Summarized with Gemini"), and up to 5 review texts. A Google average below
+3.0 across 3+ reviews excludes the property like any other low rating.
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), create a project and attach a
+   billing account (required even for free-tier use).
+2. Enable **Places API (New)**. Optionally enable **Routes API** to get rush-hour commute estimates.
+3. Create an API key (APIs & Services → Credentials) and restrict it to those APIs.
+4. Add it to `.env` at the repo root: `APTFINDER_GOOGLE_MAPS_API_KEY=your-key`
+5. Run `uv run python -m aptfinder run --skip-collection` (or a full run).
+
+Each property costs one Text Search and one Place Details request; Google data is refreshed at most
+weekly (`APTFINDER_GOOGLE_REFRESH_DAYS`), which keeps typical use inside Google's monthly free usage.
+
 Configuration lives in environment variables prefixed with `APTFINDER_` (or a `.env` file at the repo
 root). See `backend/aptfinder/config.py`. Common ones:
 
@@ -86,7 +104,8 @@ collectors never score, and React components never fetch third-party sites.
 | [U.S. Census Geocoder](https://geocoding.geo.census.gov) | Address → coordinates when a listing lacks them, and the office location | Free, no key |
 | [California DOJ OpenJustice](https://openjustice.doj.ca.gov) | City-level reported violent and property crime counts (annual) | Public CSV |
 | [California Department of Finance E-1](https://dof.ca.gov/forecasting/demographics/estimates-e1/) | City populations for crime rates | Public spreadsheet |
-| Google Routes / Places (optional) | Traffic-aware rush-hour estimates; ratings and up to 5 reviews per property | Requires `APTFINDER_GOOGLE_MAPS_API_KEY` |
+| [Google Places API](https://developers.google.com/maps/documentation/places/web-service) | Star rating and total review count for each property, Google's AI summary of all reviews, up to 5 review texts (Google chooses them by relevance; the API offers no other ordering), Google Maps link | Requires `APTFINDER_GOOGLE_MAPS_API_KEY`. Google Search and Google Maps pages were tested with a browser and rejected: Search returns a CAPTCHA immediately and Maps hides reviews from signed-out sessions |
+| Google Routes API (optional) | Traffic-aware rush-hour estimates | Same key, with Routes API enabled |
 
 Sources that could not be used and why (checked October 2026): Apartments.com, Zillow, HotPads,
 Trulia, Yelp, ApartmentRatings, RentCafe, Apartment Finder, and Niche returned HTTP 403 to plain
@@ -202,6 +221,10 @@ open a documented Google Maps directions URL and are not presented as evidence.
   cities; 153 had a studio or one-bedroom at or below $3,150 and were fetched (161 requests, no rate
   limiting); 67 passed every hard filter. Only 10 review texts exist across those 67, so most properties are
   scored on commute and city-level safety alone, at low overall confidence — the UI says so on every card.
+- **Google review texts are capped at 5 per property.** The rating and count cover every Google review,
+  and Google's AI summary describes all of them, but category scores can only cite the 5 texts Google
+  returns plus that summary. The summary is treated as derived evidence (it counts as one item, and it
+  is always shown with Google's "Summarized with Gemini" label).
 - **Thin review coverage.** Without API keys, the only reachable review source is Apartment List's
   verified reviews, which are sparse (often zero to a few per property, and some come from people who
   toured rather than lived there). Most noise, management, pest, and safety categories will honestly
