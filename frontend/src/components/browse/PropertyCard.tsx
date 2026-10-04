@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EligibilityBadge } from "@/components/EligibilityNotice";
-import { GoogleRatingLine, GoogleSummary } from "@/components/GoogleRating";
+import { GoogleCommentsSummary, GoogleRatingLine, GoogleSummary } from "@/components/GoogleRating";
 import { Highlights } from "@/components/Highlights";
 import { PriceStatusBadges } from "@/components/PriceStatusBadges";
 import { PropertyImage } from "@/components/PropertyImage";
@@ -97,6 +97,7 @@ export function PropertyCard({ property: p, highlighted, sortKey, sourceNames, b
         <div className="space-y-2 rounded-xl border border-line px-3 py-2.5">
           <GoogleRatingLine google={p.google} linkClassName="relative z-10" />
           <GoogleSummary google={p.google} clamp />
+          <GoogleCommentsSummary google={p.google} clamp />
         </div>
 
         <dl className="grid grid-cols-2 gap-3 text-sm">

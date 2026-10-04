@@ -198,7 +198,10 @@ function commuteDetail(slug, brief, overrides = {}) {
 
 const RUSH_UNAVAILABLE = "Unavailable — traffic-aware routing API required";
 
-function googleOk(slug, { rating, count, match = "exact", summary = null }) {
+const COMMENTS_METHOD =
+  "Keyword-based summary written by Apt Finder from the Google review texts returned by the Places API — not AI-generated. It reflects only those texts, not every Google rating.";
+
+function googleOk(slug, { rating, count, match = "exact", summary = null, comments = null }) {
   return {
     status: "ok",
     rating,
@@ -207,6 +210,8 @@ function googleOk(slug, { rating, count, match = "exact", summary = null }) {
     summary: summary && `[Synthetic] ${summary}`,
     summary_disclosure: summary ? "Summarized with Gemini" : null,
     summary_flag_url: summary ? `https://maps.example.com/place/${slug}/report-summary` : null,
+    comments_summary: comments && `[Synthetic] ${comments}`,
+    comments_summary_method: comments ? COMMENTS_METHOD : null,
     match_confidence: match,
     observed_at: COLLECTED,
     explanation: `${rating}/5 from ${count} Google reviews`,
@@ -222,6 +227,8 @@ function googleMissing(status, explanation) {
     summary: null,
     summary_disclosure: null,
     summary_flag_url: null,
+    comments_summary: null,
+    comments_summary_method: null,
     match_confidence: null,
     observed_at: null,
     explanation,
@@ -245,6 +252,24 @@ function summaryOf(detail) {
 
 function propertyA(imageBase) {
   const slug = "sample-property-a";
+  const googleSummary = {
+    id: `ev-${slug}-google-summary`,
+    kind: "review_summary",
+    source_id: SOURCES.google.id,
+    source_name: SOURCES.google.name,
+    title: "Google review summary",
+    content: "[Synthetic] Residents frequently praise responsive maintenance and friendly staff.",
+    published_at: null,
+    collected_at: COLLECTED,
+    source_url: `https://maps.example.com/place/${slug}`,
+    source_page_url: null,
+    is_derived: false,
+    categories: ["management"],
+    rating: null,
+    reviewer: null,
+    age_label: null,
+    data: { summary_disclosure: "Summarized with Gemini" },
+  };
   const r = [
     review(slug, 1, { rating: 3, date: "2026-08-14T00:00:00Z", text: "Walls are thin — I hear my neighbor's TV most evenings.", categories: ["noise"] }),
     review(slug, 2, { rating: 4, date: "2026-07-02T00:00:00Z", text: "Thin walls but maintenance fixed my sink within a day.", categories: ["noise", "management"] }),
@@ -299,7 +324,7 @@ function propertyA(imageBase) {
     assessment("management", 7.6, "high", "Recent reviews consistently describe responsive maintenance and staff.", {
       themeCounts: { responsive_maintenance: 3, helpful_staff: 2 },
       claims: [
-        claim(106, "Maintenance requests are resolved quickly.", "positive", "responsive_maintenance", [r[1], r[7]]),
+        claim(106, "Maintenance requests are resolved quickly.", "positive", "responsive_maintenance", [r[1], r[7], googleSummary]),
         claim(107, "Office staff are responsive and handle packages well.", "positive", "helpful_staff", [r[2]]),
       ],
     }),
@@ -348,7 +373,12 @@ function propertyA(imageBase) {
     strongest_positive: { text: "Fast, responsive maintenance", category: "management", claim_id: 106 },
     strongest_concern: { text: "Thin walls between units", category: "noise", claim_id: 102 },
     eligibility_notes: [],
-    google: googleOk(slug, { rating: 4.4, count: 132, summary: "Residents frequently praise responsive maintenance and friendly staff. Some mention thin walls and limited guest parking." }),
+    google: googleOk(slug, {
+      rating: 4.4,
+      count: 132,
+      summary: "Residents frequently praise responsive maintenance and friendly staff. Some mention thin walls and limited guest parking.",
+      comments: "From the 5 Google review texts returned (of 132 Google ratings), dated 2025–2026, averaging 4.2★. Praise: responsive maintenance (3 reviews); friendly staff (2 reviews). Complaints: thin walls (2 reviews).",
+    }),
     source_ids: [SOURCES.listings.id, SOURCES.official.id, SOURCES.reviews.id],
     listings: [
       { source_id: SOURCES.listings.id, source_name: SOURCES.listings.name, url: `https://listings.example.com/${slug}`, name: "Sample Property A Apartments", last_seen_at: COLLECTED },
@@ -409,24 +439,18 @@ function propertyA(imageBase) {
 
 function propertyB() {
   const slug = "sample-property-b";
-  const googleSummary = {
-    id: `ev-${slug}-google-summary`,
-    kind: "review_summary",
+  const googleReview = {
+    ...review(slug, 1, {
+      rating: 1,
+      date: "2024-03-10T00:00:00Z",
+      text: "Cockroaches in the kitchen within a week of moving in; pest control took a month to come.",
+      categories: ["pests"],
+      reviewer: "Google user",
+    }),
     source_id: SOURCES.google.id,
     source_name: SOURCES.google.name,
-    title: "Google review summary",
-    content:
-      "[Synthetic] Many reviewers report recurring cockroach problems in kitchens and hallways, slow pest control, and unresponsive management.",
-    published_at: null,
-    collected_at: COLLECTED,
-    source_url: `https://maps.example.com/place/${slug}`,
-    source_page_url: null,
-    is_derived: false,
-    categories: ["pests", "management"],
-    rating: null,
-    reviewer: null,
-    age_label: null,
-    data: { summary_disclosure: "Summarized with Gemini" },
+    source_url: null,
+    source_page_url: `https://maps.example.com/place/${slug}`,
   };
   const crime = fact(slug, 1, {
     kind: "safety_fact",
@@ -442,8 +466,8 @@ function propertyB() {
     }),
     insufficient("noise", "No reviews found — noise can't be assessed."),
     insufficient("management", "No reviews found — management can't be assessed."),
-    assessment("pests", null, "insufficient", "Google's AI summary mentions recurring cockroach complaints, but no individual review texts were available to score pests.", {
-      claims: [claim(203, "Google's review summary reports recurring cockroach problems.", "negative", "cockroaches", [googleSummary])],
+    assessment("pests", null, "insufficient", "One Google review reports cockroaches — too little evidence to score pests reliably.", {
+      claims: [claim(203, "A Google reviewer reports cockroaches in the kitchen.", "negative", "cockroaches", [googleReview])],
     }),
     insufficient("building_safety"),
     assessment("neighborhood_safety", 7.0, "medium", "City-level property crime rate is slightly below the county reference.", {
@@ -476,9 +500,13 @@ function propertyB() {
     commute: { distance_miles: 6.3, free_flow_minutes: 14, am_rush_minutes: null, pm_rush_minutes: null, rush_status: RUSH_UNAVAILABLE },
     review: { average: null, count: 0, status: "no_reviews", explanation: "No reviews found" },
     strongest_positive: { text: "Short commute (about 14 min, no traffic)", category: "commute", claim_id: 201 },
-    strongest_concern: { text: "Google summary reports recurring cockroaches", category: "pests", claim_id: 203 },
+    strongest_concern: { text: "Google reviewer reports cockroaches", category: "pests", claim_id: 203 },
     eligibility_notes: [],
-    google: googleOk(slug, { rating: 1.6, count: 47, summary: "Many reviewers report recurring cockroach problems in kitchens and hallways, slow pest control, and unresponsive management. A few mention the location is convenient." }),
+    google: googleOk(slug, {
+      rating: 1.6,
+      count: 47,
+      comments: "From the 5 Google review texts returned (of 47 Google ratings), dated 2019–2024, averaging 1.4★. Complaints: cockroaches (3 reviews); unresponsive management (2 reviews); noise from parties (1 review). Praise: convenient location (1 review). 2 of these reviews are more than 2 years old.",
+    }),
     source_ids: [SOURCES.listings.id, SOURCES.rentals.id, SOURCES.official.id],
     listings: [
       { source_id: SOURCES.listings.id, source_name: SOURCES.listings.name, url: `https://listings.example.com/${slug}`, name: "Sample Property B", last_seen_at: "2026-10-03T17:50:00Z" },
@@ -513,7 +541,10 @@ function propertyB() {
       "No reviews found: noise, management, and pests could not be scored.",
       "Only 2 of 7 categories had enough evidence.",
     ]),
-    review_intelligence: emptyIntel("insufficient", "No individual review texts were available from any source; only Google's overall rating and AI summary were returned."),
+    review_intelligence: {
+      ...emptyIntel("insufficient", "Only 1 Google review text was returned (of 47 Google ratings); no reviews were found on the listing sites."),
+      reviews: [googleReview],
+    },
     rating_summaries: [],
     rating_filter: { status: "no_reviews", explanation: "No reviews found, so the low-rating filter does not apply." },
     facts: [
@@ -645,7 +676,12 @@ function propertyD(imageBase) {
     strongest_positive: { text: "Recent reviews praise new management", category: "management", claim_id: 403 },
     strongest_concern: { text: "Caltrain horn audible at night", category: "noise", claim_id: 402 },
     eligibility_notes: [],
-    google: googleOk(slug, { rating: 3.4, count: 18, match: "weak", summary: "Reviewers are split: some praise the new management and quick repairs, while others mention train noise at night and parking shortages." }),
+    google: googleOk(slug, {
+      rating: 3.4,
+      count: 18,
+      match: "weak",
+      comments: "From the 4 Google review texts returned (of 18 Google ratings), dated 2018–2026, averaging 3.0★. Praise: quick repairs (2 reviews). Complaints: train noise (1 review); parking (1 review). 2 of these reviews are more than 2 years old.",
+    }),
     source_ids: [SOURCES.official.id, SOURCES.reviews.id, SOURCES.rentals.id],
     listings: [{ source_id: SOURCES.rentals.id, source_name: SOURCES.rentals.name, url: `https://rentals.example.com/${slug}`, name: "Sample Property D Studios", last_seen_at: "2026-10-03T16:20:00Z" }],
     official_website: { url: "https://www.example.com/sample-property-d", source_id: SOURCES.official.id, source_name: SOURCES.official.name, evidence_id: null },

@@ -44,6 +44,8 @@ export interface GoogleReviewsBrief {
   summary: string | null;
   summary_disclosure: string | null;
   summary_flag_url: string | null;
+  comments_summary: string | null;
+  comments_summary_method: string | null;
   match_confidence: "exact" | "probable" | "weak" | null;
   observed_at: string | null;
   explanation: string;

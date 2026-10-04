@@ -1,4 +1,4 @@
-import { GoogleRatingLine, GoogleSummary } from "@/components/GoogleRating";
+import { GoogleCommentsSummary, GoogleRatingLine, GoogleSummary } from "@/components/GoogleRating";
 import { TONE_PANEL_CLASS } from "@/components/ui/Badge";
 import { ExternalLink } from "@/components/ui/ExternalLink";
 import { IconAlert } from "@/components/ui/icons";
@@ -37,14 +37,19 @@ export function GoogleReviewsPanel({ google }: { google: GoogleReviewsBrief }) {
         </div>
 
         <div className="space-y-3">
-          {ok &&
-            (google.summary ? (
-              <div className="rounded-xl bg-surface-muted p-4">
-                <GoogleSummary google={google} showReportLink />
-              </div>
-            ) : (
-              <p className="text-sm text-ink-muted">Google didn&apos;t provide a review summary for this place.</p>
-            ))}
+          {ok && google.summary && (
+            <div className="rounded-xl bg-surface-muted p-4">
+              <GoogleSummary google={google} showReportLink />
+            </div>
+          )}
+          {google.comments_summary && (
+            <div className="rounded-xl bg-surface-muted p-4">
+              <GoogleCommentsSummary google={google} />
+            </div>
+          )}
+          {ok && !google.summary && !google.comments_summary && (
+            <p className="text-sm text-ink-muted">No summary of the Google reviews is available for this place.</p>
+          )}
           <p className="text-xs text-ink-muted">
             {ok
               ? `The star rating covers ${

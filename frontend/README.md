@@ -57,7 +57,8 @@ If the backend isn't reachable, pages show an error state asking you to start it
 - Time-sensitive values show timestamps in Pacific time, e.g. “October 3, 2026 at 8:42 PM”.
 - Effective/promotional rent is labeled “Derived — not a quoted price”.
 - Every card shows the Google Maps rating and total Google review count (color-coded: red below 3.0, amber 3.0–3.9,
-  green 4.0+) and Google's review summary with its disclosure label. When Google data is unavailable, the card shows
+  green 4.0+), Google's own review summary with its disclosure label when Google provides one, and Apt Finder's
+  keyword-based “What Google reviewers say” summary (`comments_summary`) with its method note. When Google data is unavailable, the card shows
   `google.explanation` instead — never “No reviews”. Uncertain matches are flagged “Matched by address/location —
   verify this is the right place”.
 - The base-rent range filter (dual-handle slider in $50 steps plus clamped inputs) is bounded by `/api/meta`
@@ -99,7 +100,8 @@ npm run dev:mock    # terminal 2: Next.js dev server using the mock (http://loca
 The fixtures cover: no reviews, price conflicts, stale prices, promotions with effective-rent estimates, unknown
 required fees, null coordinates, null source URLs, all-N/A scores, conflicting ratings, older evidence, eligibility
 restrictions, an evidence ID that has to be fetched from `/api/evidence/{id}`, and Google review states (low and high
-ratings, a Google AI summary used as evidence, probable and weak matches, not configured, not checked, no match).
+ratings, keyword comment summaries with and without Google's own summary, a Google AI summary used as evidence,
+probable and weak matches, not configured, not checked, no match).
 Sample Property A has qualifying rents of $2,650 and $2,950, so a $2,700–$2,900 base-rent range must exclude it.
 
 Options: `MOCK_API_PORT` (default `8010`) and `MOCK_SCENARIO=empty` (no properties, to see the empty state).

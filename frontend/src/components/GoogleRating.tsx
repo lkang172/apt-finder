@@ -129,3 +129,28 @@ export function GoogleSummary({ google, clamp = false, showReportLink = false }:
     </div>
   );
 }
+
+interface GoogleCommentsSummaryProps {
+  google: GoogleReviewsBrief;
+  clamp?: boolean;
+}
+
+export function GoogleCommentsSummary({ google, clamp = false }: GoogleCommentsSummaryProps) {
+  if (!google.comments_summary) return null;
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">What Google reviewers say</p>
+      <p className={`mt-0.5 leading-relaxed text-ink ${clamp ? `${google.summary ? "line-clamp-2" : "line-clamp-3"} text-sm` : "text-base"}`}>
+        {google.comments_summary}
+      </p>
+      {google.comments_summary_method && (
+        <p
+          className={`mt-1 text-[11px] text-ink-faint ${clamp ? "line-clamp-1" : ""}`}
+          title={clamp ? google.comments_summary_method : undefined}
+        >
+          {google.comments_summary_method}
+        </p>
+      )}
+    </div>
+  );
+}
