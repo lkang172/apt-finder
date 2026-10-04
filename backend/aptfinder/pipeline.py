@@ -1,0 +1,145 @@
+import logging
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from aptfinder.collectors.apartment_list import ApartmentListCollector
+from aptfinder.collectors.redfin import RedfinCollector
+from aptfinder.collectors.types import DiscoveryStub
+from aptfinder.config import SEARCH_CITIES, SearchCity, Settings
+from aptfinder.db.models import CollectionRun, Property, utcnow
+from aptfinder.geo import CORRIDOR
+from aptfinder.http import FetchError, PoliteClient, SourceBlocked
+from aptfinder.store import upsert_listing
+from aptfinder.verification import evaluate_property_status
+
+log = logging.getLogger(__name__)
+
+PREFILTER_MARGIN = 150
+
+
+@dataclass
+class RunContext:
+    run: CollectionRun
+    settings: Settings
+    client: PoliteClient
+    limitations: list[dict] = field(default_factory=list)
+    stats: dict[str, int] = field(default_factory=dict)
+
+    def note(self, source_id: str, message: str) -> None:
+        log.warning("%s: %s", source_id, message)
+        self.limitations.append({"source_id": source_id, "message": message})
+
+    def bump(self, key: str, amount: int = 1) -> None:
+        self.stats[key] = self.stats.get(key, 0) + amount
+
+
+def make_client(settings: Settings) -> PoliteClient:
+    return PoliteClient(
+        settings.data_dir,
+        settings.user_agent,
+        min_intervals={
+            "www.apartmentlist.com": settings.apartment_list_min_interval_s,
+            "www.redfin.com": settings.redfin_min_interval_s,
+            "router.project-osrm.org": settings.osrm_min_interval_s,
+        },
+    )
+
+
+def _stub_in_corridor(stub: DiscoveryStub) -> bool:
+    if stub.lat is None or stub.lon is None:
+        return True
+    return any(box.contains(stub.lat, stub.lon) for box in CORRIDOR)
+
+
+def _collectors(ctx: RunContext, sources: Iterable[str]) -> list:
+    ttl = timedelta(hours=ctx.settings.listing_cache_ttl_hours)
+    available = {
+        "apartment_list": lambda: ApartmentListCollector(ctx.client, ttl),
+        "redfin": lambda: RedfinCollector(ctx.client, ttl, ctx.settings.redfin_max_pages_per_city),
+    }
+    return [available[s]() for s in sources if s in available]
+
+
+def collect_listings(session: Session, ctx: RunContext, cities: Iterable[SearchCity], sources: Iterable[str]) -> None:
+    settings = ctx.settings
+    cap = settings.max_rent + PREFILTER_MARGIN
+    for collector in _collectors(ctx, sources):
+        source = collector.source_id
+        stubs: dict[str, DiscoveryStub] = {}
+        try:
+            for city in cities:
+                try:
+                    for stub in collector.discover(city):
+                        ctx.bump(f"{source}.discovered")
+                        if stub.source_listing_id in stubs:
+                            continue
+                        if not stub.may_have_qualifying_unit(settings.allowed_bedrooms, cap):
+                            ctx.bump(f"{source}.prefiltered_price")
+                            continue
+                        if not _stub_in_corridor(stub):
+                            ctx.bump(f"{source}.prefiltered_geography")
+                            continue
+                        stubs[stub.source_listing_id] = stub
+                except FetchError as exc:
+                    if isinstance(exc, SourceBlocked):
+                        raise
+                    ctx.note(source, f"Discovery failed for {city.name}: {exc}")
+        except SourceBlocked as exc:
+            ctx.note(source, f"Stopped discovery after the site signaled rate limiting or blocking: {exc}")
+
+        ctx.bump(f"{source}.candidates", len(stubs))
+        for stub in stubs.values():
+            try:
+                listing = collector.fetch_listing(stub)
+            except SourceBlocked as exc:
+                ctx.note(source, f"Stopped fetching listings after the site signaled rate limiting or blocking: {exc}")
+                break
+            except FetchError as exc:
+                ctx.note(source, f"Could not fetch {stub.url}: {exc}")
+                continue
+            if listing is None:
+                ctx.note(source, f"Listing data not found on {stub.url}")
+                continue
+            if listing.city is None:
+                listing.city = stub.city
+            upsert_listing(session, listing, ctx.run.id, utcnow())
+            session.commit()
+            ctx.bump(f"{source}.listings_saved")
+
+
+def apply_hard_filters(session: Session, settings: Settings, now: datetime) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for prop in session.scalars(select(Property)):
+        status = evaluate_property_status(session, prop, settings, now)
+        prop.status = status.status
+        prop.exclusion_reasons = status.reasons
+        prop.price_status = status.price.status if status.price else None
+        counts[status.status] = counts.get(status.status, 0) + 1
+    session.commit()
+    return counts
+
+
+def start_run(session: Session) -> CollectionRun:
+    run = CollectionRun(started_at=utcnow(), status="running")
+    session.add(run)
+    session.commit()
+    return run
+
+
+def finish_run(session: Session, ctx: RunContext, failed: bool = False) -> None:
+    ctx.run.finished_at = utcnow()
+    ctx.run.stats = ctx.stats
+    ctx.run.limitations = ctx.limitations
+    ctx.run.status = "failed" if failed else ("completed_with_limitations" if ctx.limitations else "completed")
+    session.commit()
+
+
+def resolve_cities(names: Iterable[str] | None) -> list[SearchCity]:
+    if not names:
+        return list(SEARCH_CITIES)
+    wanted = {n.strip().lower() for n in names}
+    return [c for c in SEARCH_CITIES if c.name.lower() in wanted]
