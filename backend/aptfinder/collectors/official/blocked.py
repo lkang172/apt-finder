@@ -10,6 +10,7 @@ KNOWN_BLOCKED_DOMAINS = {
     "equityapartments.com": "Equity Residential",
     "securecafe.com": "RentCafe/Yardi",
     "rentcafe.com": "RentCafe/Yardi",
+    "prometheusapartments.com": "Prometheus",
 }
 KNOWN_BLOCKED_CNAME_SUFFIXES = {
     "rentcafecn.com": "RentCafe/Yardi",
