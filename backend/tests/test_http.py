@@ -216,3 +216,28 @@ def test_robots_group_survives_blank_line_and_supports_wildcards():
     assert not robots_allows(rules, "https://example.com/api/public/more")
     own = parse_robots(text, "apt-finder/0.1 (contact)")
     assert not robots_allows(own, "https://example.com/mine/a") and robots_allows(own, "https://example.com/api/x")
+
+
+def test_transport_errors_are_retried_then_reported_as_fetch_errors(tmp_path):
+    calls = []
+
+    def flaky(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        calls.append(request.url.path)
+        if len(calls) < 3:
+            raise httpx.ConnectError("Temporary failure in name resolution", request=request)
+        return httpx.Response(200, text="ok")
+
+    client, _ = make_client(tmp_path, flaky)
+    assert client.get("https://example.com/a", ttl=timedelta(hours=1)).text == "ok"
+    assert len(calls) == 3
+
+    def down(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        raise httpx.ConnectError("no route", request=request)
+
+    client, _ = make_client(tmp_path, down)
+    with pytest.raises(FetchError, match="could not fetch"):
+        client.get("https://example.com/b", ttl=timedelta(hours=1))

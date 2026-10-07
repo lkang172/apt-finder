@@ -26,6 +26,8 @@ from aptfinder.verification import evaluate_property_status
 log = logging.getLogger(__name__)
 
 PREFILTER_MARGIN = 150
+# Repeated fetch failures in a row almost always mean a network outage, not bad pages.
+MAX_CONSECUTIVE_FETCH_FAILURES = 5
 # Redfin is opt-in: it began blocking this network and syndicates the same Zillow feed as other sources.
 DEFAULT_SOURCES = ("apartment_list", "official_site")
 # Official sites are checked for properties that could still qualify on price.
@@ -123,6 +125,7 @@ def collect_listings(session: Session, ctx: RunContext, cities: Iterable[SearchC
             ctx.note(source, f"Stopped discovery after the site signaled rate limiting or blocking: {exc}")
 
         ctx.bump(f"{source}.candidates", len(stubs))
+        failures = 0
         for stub in stubs.values():
             try:
                 listing = collector.fetch_listing(stub)
@@ -131,7 +134,12 @@ def collect_listings(session: Session, ctx: RunContext, cities: Iterable[SearchC
                 break
             except FetchError as exc:
                 ctx.note(source, f"Could not fetch {stub.url}: {exc}")
+                failures += 1
+                if failures >= MAX_CONSECUTIVE_FETCH_FAILURES:
+                    ctx.note(source, f"Stopped after {failures} consecutive fetch failures; the network or the site may be down")
+                    break
                 continue
+            failures = 0
             if listing is None:
                 ctx.note(source, f"Listing data not found on {stub.url}")
                 continue

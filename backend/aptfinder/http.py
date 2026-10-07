@@ -191,10 +191,15 @@ class PoliteClient:
         host = urlsplit(url).netloc
         current = url
         for attempt in range(self.max_retries + 1):
+            transport_error: httpx.HTTPError | None = None
             for _redirect in range(5):
                 self._throttle(urlsplit(current).netloc)
                 self.network_requests += 1
-                response = self._client.get(current, headers={"Accept": accept})
+                try:
+                    response = self._client.get(current, headers={"Accept": accept})
+                except httpx.HTTPError as exc:
+                    transport_error = exc
+                    break
                 if response.is_redirect:
                     target = urljoin(current, response.headers.get("location", ""))
                     target_host = urlsplit(target).netloc
@@ -208,6 +213,12 @@ class PoliteClient:
             else:
                 raise FetchError(f"too many redirects for {url}")
 
+            if transport_error is not None:
+                # DNS or connection failures are usually transient; retry with backoff, then report.
+                if attempt < self.max_retries:
+                    self._sleep(5.0 * (2**attempt))
+                    continue
+                raise FetchError(f"could not fetch {url}: {transport_error}") from transport_error
             if response.status_code == 429:
                 self._block(host, f"HTTP 429 (Retry-After: {response.headers.get('retry-after', 'n/a')})")
             if response.status_code == 403:
