@@ -32,6 +32,7 @@ Useful variants:
 uv run python -m aptfinder run --cities Sunnyvale,Mountain\ View   # subset of cities
 uv run python -m aptfinder run --sources apartment_list,official_site,redfin   # also try Redfin (opt-in)
 uv run python -m aptfinder run --sources apartment_list,official_site,trulia --cities Sunnyvale   # also try Trulia (opt-in)
+uv run python -m aptfinder run --sources apartment_guide --cities Sunnyvale   # ApartmentGuide (Rent. network), one city at a time
 uv run python -m aptfinder run --skip-collection                   # re-filter and re-evaluate stored evidence
 ```
 
@@ -114,6 +115,7 @@ collectors never score, and React components never fetch third-party sites.
 | Source | Used for | Access notes |
 | --- | --- | --- |
 | [Apartment List](https://www.apartmentlist.com) | Listings, unit-level base and total prices, required monthly fees, fee text, specials, amenities, pet/parking/lease facts, official website links, verified resident reviews with sub-ratings | Public pages allowed by robots.txt; requests are throttled (≥4 s apart) and cached for 12 h |
+| [ApartmentGuide](https://www.apartmentguide.com) (Rent. network, opt-in) | The largest reachable listing pool: in Sunnyvale about 220 properties versus about 45 on Apartment List, close to Apartments.com's count because property managers syndicate to every major site. Unit-level base rent, sqft, availability, deposits, application fees, income-restriction flags, last-updated dates. Many records come from Zillow's feed (`tplsource`), recorded as feed provenance | Public pages allowed by robots.txt (price filters and APIs are disallowed, so unfiltered city pages are read); ≥30 s between requests. The site answers with a short-lived challenge page after roughly 30 quick requests, so the collector stops there and the run records it; a later run resumes from the cache |
 | [Redfin Rentals](https://www.redfin.com) | Second listing source for cross-checking prices; unit-level base rent, sqft, availability | Public pages allowed by robots.txt (its APIs are disallowed and never called directly); ≥8 s between requests. In testing, Redfin began answering with an AWS WAF JavaScript challenge after a few dozen requests, so the collector stops at the first challenge and the run records the limitation. Expect little or no Redfin data until access recovers |
 | Official property websites | Unit-level base rent, total monthly price and itemized required fees where published, lease terms, specials, and income-restricted unit labels, read from the property's own leasing platform (AvalonBay, Jonah, Knock, SightMap). Runs for every property that lists an official website and could still qualify on price, and attaches to that property. Same-unit price differences from Apartment List are flagged as conflicts; an "Income Protected" label on the official site excludes that unit everywhere | On by default. Public pages and the JSON those pages load; ≥10 s between requests to shared leasing platforms. Sites on RentCafe, Entrata, Equity and other platforms that block automated access are skipped without a request; about half of official sites currently have no readable price data |
 | [Trulia Rentals](https://www.trulia.com) (opt-in) | Listings and unit-level base rent from the Zillow Group rental feed; total-price-only listings are stored as totals and never qualify on their own | Public pages allowed by robots.txt (enforced by the collector's own RFC 9309 parser); ≥15 s between requests, up to 3 search pages per city. In testing, Trulia answered HTTP 403 after about a dozen requests, so the collector stops at the first block; run it for one or two cities at a time |
@@ -257,8 +259,11 @@ open a documented Google Maps directions URL and are not presented as evidence.
 - **Redfin is challenge-gated.** Its bot protection (AWS WAF) started challenging plain requests mid-run.
   Solving that challenge would mean circumventing anti-bot measures, so Redfin is effectively a
   best-effort source and cross-source price conflicts will be rare until another listing source is added.
-- **Coverage** is limited to what Apartment List, Redfin, and Trulia list; major sites that block automated
-  access are not searched. Trulia blocks quickly, so it is opt-in.
+- **Coverage** is limited to what Apartment List, ApartmentGuide, Redfin, and Trulia list. Apartments.com and
+  its CoStar sister sites (ApartmentFinder, ForRent, Homes.com) refuse every automated request, even for
+  robots.txt, and are absent from public web archives, so they are not searched; ApartmentGuide carries most
+  of the same professionally managed inventory. Small landlords who list only on Apartments.com, Zillow, or
+  Craigslist are missed. Trulia blocks quickly, so it is opt-in.
 - **Site changes.** Collectors parse embedded page data; a site redesign can break a collector. Runs
   record such failures as limitations instead of guessing.
 
