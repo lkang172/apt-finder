@@ -12,6 +12,7 @@ KNOWN_SOURCES: tuple[tuple[str, str, str, str | None], ...] = (
     ("apartment_list", "Apartment List", "listing", "https://www.apartmentlist.com"),
     ("redfin", "Redfin Rentals", "listing", "https://www.redfin.com"),
     ("trulia", "Trulia Rentals (Zillow feed)", "listing", "https://www.trulia.com"),
+    ("apartment_guide", "ApartmentGuide (Rent. network)", "listing", "https://www.apartmentguide.com"),
     ("official_site", "Official property website", "listing", None),
     ("google_places", "Google Maps (Places API)", "review", "https://maps.google.com"),
     ("osrm", "OSRM routing (OpenStreetMap data)", "routing", "https://project-osrm.org"),

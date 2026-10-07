@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     redfin_max_pages_per_city: int = 3
     trulia_min_interval_s: float = 15.0
     trulia_max_pages_per_city: int = 3
+    apartment_guide_min_interval_s: float = 30.0
+    apartment_guide_max_pages_per_city: int = 6
     shared_widget_min_interval_s: float = 10.0
     osrm_min_interval_s: float = 1.5
 

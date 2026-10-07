@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from aptfinder.collectors.apartment_guide import ApartmentGuideCollector
 from aptfinder.collectors.apartment_list import ApartmentListCollector
 from aptfinder.collectors.official_sites import OfficialSiteCollector, OfficialSiteTarget
 from aptfinder.collectors.redfin import RedfinCollector
@@ -55,6 +56,7 @@ def make_client(settings: Settings) -> PoliteClient:
             "www.apartmentlist.com": settings.apartment_list_min_interval_s,
             "www.redfin.com": settings.redfin_min_interval_s,
             "www.trulia.com": settings.trulia_min_interval_s,
+            "www.apartmentguide.com": settings.apartment_guide_min_interval_s,
             "doorway-api.knockrentals.com": settings.shared_widget_min_interval_s,
             "sightmap.com": settings.shared_widget_min_interval_s,
             "router.project-osrm.org": settings.osrm_min_interval_s,
@@ -83,6 +85,9 @@ def _collectors(ctx: RunContext, sources: Iterable[str]) -> list:
     available = {
         "apartment_list": lambda: ApartmentListCollector(ctx.client, ttl),
         "redfin": lambda: RedfinCollector(ctx.client, ttl, ctx.settings.redfin_max_pages_per_city),
+        "apartment_guide": lambda: ApartmentGuideCollector(
+            ctx.client, ttl, ctx.settings.apartment_guide_max_pages_per_city, ctx.settings.max_rent, ctx.settings.allowed_bedrooms
+        ),
         "trulia": lambda: TruliaCollector(
             ctx.client, ttl, ctx.settings.trulia_max_pages_per_city, ctx.settings.max_rent, ctx.settings.allowed_bedrooms
         ),
