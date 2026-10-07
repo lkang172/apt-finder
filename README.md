@@ -32,7 +32,7 @@ Useful variants:
 uv run python -m aptfinder run --cities Sunnyvale,Mountain\ View   # subset of cities
 uv run python -m aptfinder run --sources apartment_list,official_site,redfin   # also try Redfin (opt-in)
 uv run python -m aptfinder run --sources apartment_list,official_site,trulia --cities Sunnyvale   # also try Trulia (opt-in)
-uv run python -m aptfinder run --sources apartment_guide --cities Sunnyvale   # ApartmentGuide (Rent. network), one city at a time
+uv run python -m aptfinder run --sources apartment_guide                # ApartmentGuide (Rent. network, opt-in); 30 s between requests, several hours for all cities
 uv run python -m aptfinder run --skip-collection                   # re-filter and re-evaluate stored evidence
 ```
 
