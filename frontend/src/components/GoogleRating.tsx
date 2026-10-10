@@ -1,8 +1,8 @@
-import { TONE_TEXT_CLASS } from "./ui/Badge";
+import { Badge, TONE_TEXT_CLASS } from "./ui/Badge";
 import { ExternalLink } from "./ui/ExternalLink";
-import { IconStar } from "./ui/icons";
+import { IconAlert, IconStar } from "./ui/icons";
 import { formatRating, pluralize } from "@/lib/format";
-import { isUncertainGoogleMatch, ratingTone, type Tone } from "@/lib/presentation";
+import { isLowGoogleRating, isUncertainGoogleMatch, LOW_GOOGLE_RATING_HINT, ratingTone, type Tone } from "@/lib/presentation";
 import type { GoogleReviewsBrief } from "@/lib/types";
 
 const STAR_FILL_CLASS: Partial<Record<Tone, string>> = {
@@ -152,5 +152,16 @@ export function GoogleCommentsSummary({ google, clamp = false }: GoogleCommentsS
         </p>
       )}
     </div>
+  );
+}
+
+// Compact warning chip for an established low Google rating. Informational only: the property stays listed.
+export function LowGoogleRatingBadge({ google, overImage = false }: { google: GoogleReviewsBrief; overImage?: boolean }) {
+  if (!isLowGoogleRating(google)) return null;
+  return (
+    <Badge tone="warning" title={LOW_GOOGLE_RATING_HINT} className={overImage ? "shadow-sm" : ""}>
+      <IconAlert />
+      Low Google rating
+    </Badge>
   );
 }

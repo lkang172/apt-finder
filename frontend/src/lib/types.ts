@@ -11,6 +11,8 @@ export type Category =
   | "other_issues";
 export type PriceStatus = "verified" | "conflict" | "stale";
 export type ReviewStatus = "ok" | "no_reviews" | "insufficient" | "conflict";
+// "low_rating" flags an established rating below 3.0 across 3+ credible reviews. It never excludes a property.
+export type RatingFilterStatus = ReviewStatus | "low_rating";
 export type UnitType = "studio" | "1br";
 export type Region = "peninsula" | "south_bay" | "east_bay";
 
@@ -311,7 +313,7 @@ export interface PropertyDetail extends PropertySummary {
   overall_detail: OverallView;
   review_intelligence: ReviewIntelligence;
   rating_summaries: RatingSummary[];
-  rating_filter: { status: ReviewStatus | "excluded_low_rating"; explanation: string };
+  rating_filter: { status: RatingFilterStatus; explanation: string };
   facts: EvidenceItem[];
   audit: AuditNote[];
   limitations: string[];

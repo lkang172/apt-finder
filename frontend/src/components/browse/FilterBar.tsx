@@ -1,8 +1,9 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import { IconChevronDown, IconGrid, IconMap, IconSearch, IconSliders, IconSort } from "@/components/ui/icons";
+import { IconChevronDown, IconGrid, IconMap, IconSearch, IconSliders, IconSort, IconStar } from "@/components/ui/icons";
 import {
+  googleStarsLabel,
   monthlyTotalOptions,
   SCORE_FILTER_CATEGORIES,
   SORT_OPTIONS,
@@ -14,6 +15,7 @@ import {
 import { formatMoney, formatMoneyRange } from "@/lib/format";
 import { CATEGORY_LABEL, CONFIDENCE_LABEL, UNIT_TYPE_LABEL } from "@/lib/presentation";
 import type { Confidence, UnitType } from "@/lib/types";
+import { GoogleStarsFilter } from "./GoogleStarsFilter";
 import { RentRangeFilter } from "./RentRangeFilter";
 
 export type ViewMode = "grid" | "map";
@@ -59,7 +61,10 @@ export function FilterBar({
   const sortId = useId();
   const panelId = useId();
   const rentPanelId = useId();
+  const starsPanelId = useId();
   const [rentOpen, setRentOpen] = useState(false);
+  const [starsOpen, setStarsOpen] = useState(false);
+  const starsActive = filters.minGoogleStars !== null;
   const update = (patch: Partial<BrowseFilters>) => onFiltersChange({ ...filters, ...patch });
 
   function toggleUnitType(type: UnitType) {
@@ -113,6 +118,22 @@ export function FilterBar({
             <IconChevronDown className={`transition ${rentOpen ? "rotate-180" : ""}`} />
           </button>
         )}
+
+        <button
+          type="button"
+          aria-expanded={starsOpen}
+          aria-controls={starsPanelId}
+          onClick={() => setStarsOpen(!starsOpen)}
+          className={`${CONTROL_CLASS} inline-flex min-w-44 items-center justify-between gap-1.5 font-medium tabular-nums ${
+            starsActive ? "border-accent bg-accent-soft text-accent" : starsOpen ? "border-accent text-accent" : ""
+          }`}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <IconStar className="text-amber-500" />
+            {starsActive ? `Google rating ${googleStarsLabel(filters.minGoogleStars)}` : "Google rating: Any"}
+          </span>
+          <IconChevronDown className={`transition ${starsOpen ? "rotate-180" : ""}`} />
+        </button>
 
         <div role="group" aria-label="Unit type" className="flex gap-1">
           {UNIT_TYPES.map((type) => {
@@ -198,6 +219,25 @@ export function FilterBar({
         </div>
       )}
 
+      <div id={starsPanelId} hidden={!starsOpen} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+        <GoogleStarsFilter
+          value={filters.minGoogleStars}
+          includeUnrated={filters.includeUnrated}
+          onChange={(minGoogleStars) => update({ minGoogleStars })}
+          onIncludeUnratedChange={(includeUnrated) => update({ includeUnrated })}
+        />
+        <div className="mt-3 flex justify-end border-t border-line pt-3">
+          <button
+            type="button"
+            onClick={() => update({ minGoogleStars: null, includeUnrated: true })}
+            disabled={!starsActive && filters.includeUnrated}
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            Reset Google rating
+          </button>
+        </div>
+      </div>
+
       <div id={panelId} hidden={!moreOpen} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <NumberSelect
@@ -220,13 +260,6 @@ export function FilterBar({
             options={MIN_SCORE_OPTIONS}
             format={(score) => `${score}+`}
             onChange={(minOverall) => update({ minOverall })}
-          />
-          <NumberSelect
-            label="Min rating (Google when available)"
-            value={filters.minReviewRating}
-            options={MIN_RATING_OPTIONS}
-            format={(rating) => `${rating.toFixed(1)}+ / 5`}
-            onChange={(minReviewRating) => update({ minReviewRating })}
           />
           {SCORE_FILTER_CATEGORIES.map((category) => (
             <NumberSelect

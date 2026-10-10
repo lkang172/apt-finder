@@ -22,8 +22,9 @@ export default async function ExcludedPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-ink">Excluded properties</h1>
         <p className="mt-2 text-ink-muted">
-          Properties removed by hard filters — price range, unit type, location, stale pricing, or a well-established review
-          rating below 3.0/5. They never appear in the main results.
+          Properties removed by hard filters — price range, unit type, location, or stale pricing. They never appear in the
+          main results. A low review rating does not exclude a property: it is flagged on the property instead, and the
+          browse page can filter by Google stars.
         </p>
       </div>
 

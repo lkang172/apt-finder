@@ -8,7 +8,7 @@ import { Timestamp } from "@/components/ui/Timestamp";
 import type { EvidenceIndex } from "@/lib/evidence";
 import { formatRating, pluralize } from "@/lib/format";
 import { CONFIDENCE_LABEL, hasNoReviews, type Tone } from "@/lib/presentation";
-import type { PropertyDetail, RatingSummary, ReviewBrief, ReviewStatus, ThemeStat } from "@/lib/types";
+import type { PropertyDetail, RatingFilterStatus, RatingSummary, ReviewBrief, ThemeStat } from "@/lib/types";
 import { DetailList } from "./DetailList";
 import { EvidenceList, EvidenceRefs } from "./Evidence";
 
@@ -198,20 +198,21 @@ function Disclosure({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-const RATING_FILTER_TONE: Record<ReviewStatus | "excluded_low_rating", Tone> = {
+const RATING_FILTER_TONE: Record<RatingFilterStatus, Tone> = {
   ok: "positive",
   no_reviews: "neutral",
   insufficient: "neutral",
   conflict: "warning",
-  excluded_low_rating: "danger",
+  low_rating: "warning",
 };
 
-const RATING_FILTER_TITLE: Record<ReviewStatus | "excluded_low_rating", string> = {
+// A low rating is flagged, never used to exclude a property — the browse page filters by Google stars instead.
+const RATING_FILTER_TITLE: Record<RatingFilterStatus, string> = {
   ok: "Rating filter: passed",
   no_reviews: "Rating filter not applied — no reviews found",
   insufficient: "Rating filter not applied — not enough reliable ratings",
   conflict: "Conflicting ratings across sources — not resolved automatically",
-  excluded_low_rating: "Excluded: well-established rating below 3.0/5",
+  low_rating: "Flagged: well-established rating below 3.0/5",
 };
 
 interface RatingSummariesProps {
@@ -227,6 +228,12 @@ export function RatingSummaries({ summaries, filter }: RatingSummariesProps) {
       <div className={`rounded-xl border p-3 text-sm ${TONE_PANEL_CLASS[tone]}`}>
         <p className="font-semibold text-ink">{RATING_FILTER_TITLE[filter.status]}</p>
         <p className="mt-0.5 text-ink-muted">{filter.explanation}</p>
+        {filter.status === "low_rating" && (
+          <p className="mt-1 text-xs text-ink-muted">
+            Flagged for your attention — a low rating never removes a property from the results. Use the Google rating
+            filter on the browse page to hide low-rated properties.
+          </p>
+        )}
       </div>
       {summaries.length > 0 ? (
         <ul className="divide-y divide-line">

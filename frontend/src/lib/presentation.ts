@@ -142,6 +142,15 @@ export function googleRating(google: GoogleReviewsBrief): number | null {
   return google.status === "ok" ? google.rating : null;
 }
 
+// An established low Google rating: below 3.0 across at least 3 Google reviews. Such properties are flagged on cards
+// and on the detail header; they are never hidden, dimmed, or excluded — the user filters by stars instead.
+export function isLowGoogleRating(google: GoogleReviewsBrief): boolean {
+  const rating = googleRating(google);
+  return rating !== null && rating < 3 && google.count !== null && google.count >= 3;
+}
+
+export const LOW_GOOGLE_RATING_HINT = "Google rating below 3.0 across at least 3 reviews — flagged for your attention, not excluded";
+
 export function isUncertainGoogleMatch(google: GoogleReviewsBrief): boolean {
   return google.status === "ok" && (google.match_confidence === "probable" || google.match_confidence === "weak");
 }

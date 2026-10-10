@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EligibilityBadge } from "@/components/EligibilityNotice";
-import { GoogleCommentsSummary, GoogleRatingLine, GoogleSummary } from "@/components/GoogleRating";
+import { GoogleCommentsSummary, GoogleRatingLine, GoogleSummary, LowGoogleRatingBadge } from "@/components/GoogleRating";
 import { Highlights } from "@/components/Highlights";
 import { PriceStatusBadges } from "@/components/PriceStatusBadges";
 import { PropertyImage } from "@/components/PropertyImage";
@@ -58,6 +58,7 @@ export function PropertyCard({ property: p, highlighted, sortKey, sourceNames, b
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           <EligibilityBadge notes={p.eligibility_notes} overImage />
           <PriceStatusBadges status={p.price_status} hasPromotion={p.has_promotion} overImage />
+          <LowGoogleRatingBadge google={p.google} overImage />
         </div>
       </div>
 

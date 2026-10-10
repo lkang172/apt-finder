@@ -21,6 +21,8 @@ export interface RentRange {
 export interface BrowseFilters {
   query: string;
   baseRent: RentRange | null;
+  minGoogleStars: number | null;
+  includeUnrated: boolean;
   city: string;
   unitTypes: UnitType[];
   maxMonthlyTotal: number | null;
@@ -35,6 +37,8 @@ export interface BrowseFilters {
 export const EMPTY_FILTERS: BrowseFilters = {
   query: "",
   baseRent: null,
+  minGoogleStars: null,
+  includeUnrated: true,
   city: "",
   unitTypes: [],
   maxMonthlyTotal: null,
@@ -141,6 +145,20 @@ export function rentsInRange(property: PropertySummary, range: RentRange): numbe
   return property.qualifying_rents.filter((rent) => rent >= range.min && rent <= range.max);
 }
 
+export const GOOGLE_STARS_OPTIONS = [3, 3.5, 4, 4.5];
+
+export function googleStarsLabel(minStars: number | null): string {
+  return minStars === null ? "Any rating" : `${minStars.toFixed(1)}+`;
+}
+
+// Google Maps rating only — never the other sources' average. A property without a Google rating (no confident
+// match, not checked, or no Google reviews yet) matches only while "Include unrated" is on.
+export function meetsGoogleStars(property: PropertySummary, minStars: number | null, includeUnrated: boolean): boolean {
+  if (minStars === null) return true;
+  const rating = googleRating(property.google);
+  return rating === null ? includeUnrated : rating >= minStars;
+}
+
 export function monthlyTotalOptions(bounds: RentRange | null): number[] {
   if (!bounds) return [];
   const first = Math.ceil((bounds.min + 100) / 100) * 100;
@@ -153,6 +171,7 @@ export function filterProperties(items: PropertySummary[], filters: BrowseFilter
     (p) =>
       matchesQuery(p, filters.query) &&
       (filters.baseRent === null || rentsInRange(p, filters.baseRent).length > 0) &&
+      meetsGoogleStars(p, filters.minGoogleStars, filters.includeUnrated) &&
       (!filters.city || p.city === filters.city) &&
       (filters.unitTypes.length === 0 || filters.unitTypes.some((type) => p.unit_types.includes(type))) &&
       meetsMaximum(p.est_monthly_total_min, filters.maxMonthlyTotal) &&
@@ -172,6 +191,7 @@ export function countActiveFilters(filters: BrowseFilters): number {
   return (
     (filters.query.trim() ? 1 : 0) +
     (filters.baseRent ? 1 : 0) +
+    (filters.minGoogleStars !== null ? 1 : 0) +
     (filters.city ? 1 : 0) +
     (filters.unitTypes.length > 0 ? 1 : 0) +
     (filters.hideEligibilityRestricted ? 1 : 0) +

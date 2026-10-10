@@ -38,6 +38,12 @@ The app talks to the backend in two ways:
 BACKEND_URL=http://localhost:9000 npm run dev
 ```
 
+On Vercel neither mechanism above is configured by hand. The root `vercel.json` deploys this app and the
+backend as two services: its top-level rewrite sends public `/api/*` requests straight to the backend
+service (so `next.config.ts` emits no proxy rewrite when `VERCEL=1`), and a service binding injects the
+backend's internal URL as `BACKEND_URL` at runtime for the server-rendered pages. Don't set `BACKEND_URL`
+in the Vercel project's environment variables. See "Deploy to Vercel" in the project README.
+
 If the backend isn't reachable, pages show an error state asking you to start it.
 
 ## Routes
@@ -64,8 +70,17 @@ If the backend isn't reachable, pages show an error state asking you to start it
 - The base-rent range filter (dual-handle slider in $50 steps plus clamped inputs) is bounded by `/api/meta`
   `search.min_rent`/`max_rent` and is unit-accurate: a property matches only if a value in `qualifying_rents` falls
   inside the range, never because its overall min–max range overlaps.
-- The “Rating” sort and the minimum-rating filter use the Google rating when available and fall back to the other
-  sources' average; a separate “Google rating” sort uses Google only.
+- The “Google rating” filter next to the base-rent filter (Any rating / 3.0+ / 3.5+ / 4.0+ / 4.5+) uses the Google Maps
+  rating only. With a minimum set, properties without a Google rating (`google.rating` is `null` or `google.status` is
+  not `ok`) are hidden unless “Include unrated” (checked by default) keeps them. The “Showing N of M” count and the map
+  pins follow the filtered list. Like the base-rent filter it is in-memory page state (not URL or localStorage).
+- A low Google rating never hides a property. When `google.status` is `ok`, the rating is below 3.0, and there are at
+  least 3 Google reviews, cards and the detail header show a “Low Google rating” warning chip. The backend's
+  `rating_filter.status` of `low_rating` is presented as “Flagged”, never “Excluded”; the `/excluded` page lists no
+  rating reasons.
+- The “Rating (Google first)” sort and the “Min rating (Google when available)” filter under “Filters” use the Google
+  rating when available and fall back to the other sources' average; a separate “Google rating” sort uses Google only.
+  Unrated properties always sort last.
 
 ## Project layout
 
@@ -99,10 +114,13 @@ npm run dev:mock    # terminal 2: Next.js dev server using the mock (http://loca
 
 The fixtures cover: no reviews, price conflicts, stale prices, promotions with effective-rent estimates, unknown
 required fees, null coordinates, null source URLs, all-N/A scores, conflicting ratings, older evidence, eligibility
-restrictions, an evidence ID that has to be fetched from `/api/evidence/{id}`, and Google review states (low and high
+restrictions, an evidence ID that has to be fetched from `/api/evidence/{id}`, Google review states (low and high
 ratings, keyword comment summaries with and without Google's own summary, a Google AI summary used as evidence,
-probable and weak matches, not configured, not checked, no match).
+probable and weak matches, not configured, not checked, no match), and a property flagged `low_rating` that is still
+included (Sample Property H: 1.6★ across 8 Google reviews, 2.1/5 across 14 site reviews).
 Sample Property A has qualifying rents of $2,650 and $2,950, so a $2,700–$2,900 base-rent range must exclude it.
+With “Google rating 3.5+”, Sample Properties B, D, and H (rated 1.6, 3.4, and 1.6) must disappear while C, E, and G (no
+Google rating) stay until “Include unrated” is unchecked; B and H show the “Low Google rating” chip.
 
 Options: `MOCK_API_PORT` (default `8010`) and `MOCK_SCENARIO=empty` (no properties, to see the empty state).
 

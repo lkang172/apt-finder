@@ -1,5 +1,5 @@
 import { EligibilityBadge } from "@/components/EligibilityNotice";
-import { GoogleRatingLine } from "@/components/GoogleRating";
+import { GoogleRatingLine, LowGoogleRatingBadge } from "@/components/GoogleRating";
 import { Highlights } from "@/components/Highlights";
 import { PriceStatusBadges } from "@/components/PriceStatusBadges";
 import { PropertyImage } from "@/components/PropertyImage";
@@ -31,6 +31,7 @@ export function PropertyHeader({ detail, sourceNames }: { detail: PropertyDetail
           <Badge>{REGION_LABEL[detail.region]}</Badge>
           <EligibilityBadge notes={detail.eligibility_notes} />
           <PriceStatusBadges status={detail.price_status} hasPromotion={detail.has_promotion} />
+          <LowGoogleRatingBadge google={detail.google} />
         </div>
 
         <div>

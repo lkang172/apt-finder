@@ -81,8 +81,8 @@ export function BrowseView({ items, total, cities, office, search, sourceNames }
         }
       >
         <p>
-          No property has passed the hard filters (studio/1BR, base rent within range, fresh pricing, location, and review
-          rating). Use “Refresh data” to collect listings, or check which properties were excluded and why.
+          No property has passed the hard filters (studio/1BR, base rent within range, fresh pricing, and location). Use
+          “Refresh data” to collect listings, or check which properties were excluded and why.
         </p>
       </StateMessage>
     );
@@ -153,7 +153,10 @@ export function BrowseView({ items, total, cities, office, search, sourceNames }
             </button>
           }
         >
-          <p>Filters on scores, ratings, price, and commute exclude properties where that value is unknown.</p>
+          <p>
+            Filters on scores, ratings, price, and commute hide properties where that value is unknown. The Google rating
+            filter keeps unrated properties only while “Include unrated” is checked.
+          </p>
         </StateMessage>
       ) : view === "map" ? (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,42%)]">

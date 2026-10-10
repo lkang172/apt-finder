@@ -721,7 +721,7 @@ function propertyD(imageBase) {
   return detail;
 }
 
-function simpleProperty({ id, name, city, region, lat, lon, image, rent, total, sqft, commute, scores, review: reviewBrief, google, unknownCosts = false, eligibility = [] }) {
+function simpleProperty({ id, name, city, region, lat, lon, image, rent, total, sqft, commute, scores, review: reviewBrief, google, unknownCosts = false, eligibility = [], ratingSummaries = [], ratingFilter = null }) {
   const slug = name.toLowerCase().replace(/\s+/g, "-");
   const assessments = CATEGORIES.map((c) =>
     scores[c] === null || scores[c] === undefined
@@ -770,8 +770,8 @@ function simpleProperty({ id, name, city, region, lat, lon, image, rent, total, 
     assessments,
     overall_detail: overallFrom(assessments, "medium", []),
     review_intelligence: emptyIntel(reviewBrief.status === "ok" ? "medium" : "insufficient", "Synthetic review-quality summary."),
-    rating_summaries: [],
-    rating_filter: { status: reviewBrief.status, explanation: "Synthetic rating-filter explanation." },
+    rating_summaries: ratingSummaries,
+    rating_filter: ratingFilter ?? { status: reviewBrief.status, explanation: "Synthetic rating-filter explanation." },
     facts: [],
     audit: [],
     limitations: [SYNTHETIC_MARKER],
@@ -838,6 +838,30 @@ export function buildFixtures(imageBase) {
       scores: { commute: [7.0, "high"], noise: null, management: null, pests: null, building_safety: null, neighborhood_safety: [7.2, "medium"], other_issues: null },
       review: { average: null, count: 0, status: "no_reviews", explanation: "No reviews found" },
     }),
+    // Included despite an established low rating: the backend flags it (rating_filter "low_rating") instead of
+    // excluding it, and the UI shows the "Low Google rating" chip. A "Google rating 3.5+" filter must hide it.
+    simpleProperty({
+      id: 8,
+      name: "Sample Property H",
+      city: "Milpitas",
+      region: "south_bay",
+      lat: 37.428,
+      lon: -121.906,
+      image: `${imageBase}/h.svg`,
+      rent: [2400, 2480],
+      total: 2560,
+      sqft: [600, 620],
+      google: googleOk("sample-property-h", {
+        rating: 1.6,
+        count: 8,
+        comments: "Complaints: unresponsive management (3 reviews); broken elevator (2 reviews); noise (1 review). Praise: convenient location (1 review).",
+      }),
+      commute: { distance_miles: 9.6, free_flow_minutes: 16, am_rush_minutes: null, pm_rush_minutes: null, rush_status: RUSH_UNAVAILABLE },
+      scores: { commute: [7.9, "high"], noise: [4.1, "medium"], management: [3.2, "medium"], pests: [4.5, "low"], building_safety: null, neighborhood_safety: [6.5, "medium"], other_issues: null },
+      review: { average: 2.1, count: 14, status: "ok", explanation: "14 reviews from 1 source" },
+      ratingSummaries: [{ source_id: SOURCES.reviews.id, source_name: SOURCES.reviews.name, average: 2.1, count: 14, source_url: "https://reviews.example.com/sample-property-h", observed_at: COLLECTED }],
+      ratingFilter: { status: "low_rating", explanation: "Confirmed rating below 3.0: example_reviews: 2.1/5 (14 reviews); google_places: 1.6/5 (8 reviews)" },
+    }),
   ];
 
   const lastRun = {
@@ -854,7 +878,7 @@ export function buildFixtures(imageBase) {
 
   const excluded = [
     { id: 90, name: "Sample Excluded Property X", city: "Palo Alto", reasons: [{ filter: "price_range", explanation: "Lowest studio/1BR base rent is $3,450 — above the $3,000 limit." }] },
-    { id: 91, name: "Sample Excluded Property Y", city: "Campbell", reasons: [{ filter: "low_review_rating", explanation: "2.4/5 across 87 reviews — reliably below 3.0." }] },
+    { id: 91, name: "Sample Excluded Property Y", city: "Campbell", reasons: [{ filter: "price_freshness", explanation: "Latest studio price was observed 41 days ago — older than the freshness limit." }] },
     { id: 92, name: "Sample Excluded Property Z", city: null, reasons: [{ filter: "geography", explanation: "Located north of Foster City." }, { filter: "unit_type", explanation: "Only 2BR+ units were listed." }] },
   ];
 
