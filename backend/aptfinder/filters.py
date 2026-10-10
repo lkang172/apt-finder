@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 LOW_RATING_THRESHOLD = 3.0
-MIN_REVIEWS_FOR_EXCLUSION = 3
+MIN_REVIEWS_ESTABLISHED = 3
 RATING_CONFLICT_GAP = 1.0
 
 
@@ -91,7 +91,7 @@ class RatingInput:
 
 @dataclass(frozen=True)
 class RatingDecision:
-    exclude: bool
+    low_rating: bool
     status: str
     explanation: str
     sources_considered: list[str] = field(default_factory=list)
@@ -103,13 +103,13 @@ def evaluate_rating_filter(ratings: list[RatingInput]) -> RatingDecision:
         return RatingDecision(False, "no_reviews", "No reviews found")
 
     credible = [r for r in usable if r.match_confidence in ("exact", "probable")]
-    established = [r for r in credible if r.count >= MIN_REVIEWS_FOR_EXCLUSION]
+    established = [r for r in credible if r.count >= MIN_REVIEWS_ESTABLISHED]
     names = [r.source_id for r in established]
     if not established:
         total = sum(r.count for r in credible)
         return RatingDecision(
             False, "insufficient",
-            f"Only {total} credible review(s); at least {MIN_REVIEWS_FOR_EXCLUSION} needed before a rating can exclude a property",
+            f"Only {total} credible review(s); at least {MIN_REVIEWS_ESTABLISHED} needed before a rating counts",
         )
 
     low = [r for r in established if r.normalized < LOW_RATING_THRESHOLD]
@@ -119,18 +119,18 @@ def evaluate_rating_filter(ratings: list[RatingInput]) -> RatingDecision:
     if not low:
         return RatingDecision(False, "ok", f"Ratings at or above {LOW_RATING_THRESHOLD}: {describe}", names)
     if not ok:
-        return RatingDecision(True, "excluded_low_rating", f"Confirmed rating below {LOW_RATING_THRESHOLD}: {describe}", names)
+        return RatingDecision(True, "low_rating", f"Confirmed rating below {LOW_RATING_THRESHOLD}: {describe}", names)
 
     gap = max(r.normalized for r in ok) - min(r.normalized for r in low)
     if gap >= RATING_CONFLICT_GAP:
         return RatingDecision(
             False, "conflict",
-            f"Review sources disagree by {gap:.1f} stars ({describe}); not excluded — verify directly",
+            f"Review sources disagree by {gap:.1f} stars ({describe}); not flagged — verify directly",
             names,
         )
     pooled = sum(r.normalized * r.count for r in established) / sum(r.count for r in established)
     if pooled < LOW_RATING_THRESHOLD:
-        return RatingDecision(True, "excluded_low_rating", f"Pooled rating {pooled:.2f}/5 below threshold: {describe}", names)
+        return RatingDecision(True, "low_rating", f"Pooled rating {pooled:.2f}/5 below threshold: {describe}", names)
     return RatingDecision(False, "ok", f"Pooled rating {pooled:.2f}/5: {describe}", names)
 
 

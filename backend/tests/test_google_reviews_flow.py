@@ -18,6 +18,7 @@ from aptfinder.enrichment import collect_google_reviews
 from aptfinder.evaluation import area_input, commute_input, persist_assessments, rating_inputs, review_inputs
 from aptfinder.evaluators import evaluate_all
 from aptfinder.http import FetchResult
+from aptfinder.verification import evaluate_property_status
 from aptfinder.pipeline import apply_hard_filters
 from aptfinder.store import upsert_listing
 
@@ -79,16 +80,16 @@ COCKROACH_TEXTS = [
 ]
 
 
-def test_low_google_rating_excludes_property(central_park):
+def test_low_google_rating_is_flagged_not_excluded(central_park):
     factory = fake_factory(1.6, 47, COCKROACH_TEXTS, "Residents frequently report cockroaches and slow maintenance.")
     with session_scope() as session:
         props = list(session.scalars(select(Property).where(Property.status == "included")))
         assert collect_google_reviews(session, KEYED, props, utcnow(), lambda s, m: None, client_factory=factory) == 1
         apply_hard_filters(session, KEYED, utcnow())
         prop = session.get(Property, central_park)
-        assert prop.status == "excluded"
-        assert prop.exclusion_reasons[0]["filter"] == "review_rating"
-        assert "google_places: 1.6/5 (47 reviews)" in prop.exclusion_reasons[0]["explanation"]
+        assert prop.status == "included" and prop.exclusion_reasons == []
+        decision = evaluate_property_status(session, prop, KEYED, utcnow()).rating
+        assert decision.status == "low_rating" and "google_places: 1.6/5 (47 reviews)" in decision.explanation
 
 
 def test_google_reviews_and_summary_feed_category_scores(central_park):

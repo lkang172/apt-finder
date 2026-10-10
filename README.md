@@ -46,7 +46,7 @@ address, and a location check), and the app stores the star rating, total review
 AI summary of all reviews ("Summarized with Gemini") when Google provides one (it does for only some
 places), and up to 5 review texts. The star rating covers every Google rating; the 5 texts are a sample
 Google picks, so the keyword summary built from them is labeled "Sample only". A Google average below
-3.0 across 3+ reviews excludes the property like any other low rating.
+3.0 across 3+ reviews is flagged ("Low Google rating") and can be filtered out with the star filter; it never excludes a property.
 
 1. In the [Google Cloud console](https://console.cloud.google.com/), create a project and attach a
    billing account (required even for free-tier use).
@@ -177,9 +177,8 @@ updates records instead of duplicating them, and the raw page behind each record
    military restrictions are shown as warnings rather than excluded.
 5. **Property type**: extended-stay hotels (identified by their official website, e.g.
    extendedstayamerica.com) are excluded; they arrive through partner feeds but are not apartments.
-6. **Review rating**: excluded only when a reliably matched source shows an average below 3.0/5 across
-   at least 3 reviews. One review, no reviews, or a weakly matched source never excludes. When credible
-   sources disagree by a star or more, the property is kept and flagged as conflicting.
+6. **Review rating**: never excludes. An average below 3.0/5 across 3+ reviews from a reliably matched
+   source is flagged as a low rating, shown on the card, and filterable by minimum Google stars in the UI.
 
 Properties that fail a filter stay in the database with their reasons and are listed on the UI's
 "Excluded properties" page, so nothing disappears silently.
@@ -287,6 +286,37 @@ date, plus full-text search over `evidence.content`), pass only those records to
 instructions to cite evidence IDs, then validate that every cited ID exists and belongs to the
 properties in question before showing an answer with source links — the same audit discipline used for
 scores.
+
+## Deploy to Vercel
+
+`vercel.json` at the repo root deploys the repository as one Vercel project with two
+[services](https://vercel.com/docs/services):
+
+| Service | Root | Framework | Public path |
+| --- | --- | --- | --- |
+| `backend` | `backend/` | FastAPI, entrypoint `aptfinder.api.app:app` | `/api/*` (top-level rewrite) |
+| `frontend` | `frontend/` | Next.js | everything else (catch-all rewrite) |
+
+The backend's routes already live under `/api/...`, and Vercel passes the request path through unchanged,
+so no prefix handling is needed. The `frontend` service declares a service binding to `backend`, which
+injects the backend's internal URL as `BACKEND_URL` at runtime for server-rendered pages. Do not set
+`BACKEND_URL` in the project's environment variables; bindings are not available during `next build`, so
+`next.config.ts` emits no `/api` proxy rewrite on Vercel. Python dependencies install from
+`backend/pyproject.toml` + `uv.lock` (Python 3.12). `vercel dev` from the repo root runs both services
+locally with the binding injected (Vercel CLI 48.1.8 or newer).
+
+Constraints the deployment does not solve on its own:
+
+- **Database.** The API reads SQLite from `data/aptfinder.db`, which is gitignored and outside the backend
+  service root, and Vercel's function filesystem is read-only. The deployment needs
+  `APTFINDER_DATABASE_URL` pointed at a hosted database (plus that database's SQLAlchemy driver added to
+  `backend/pyproject.toml`), with the pipeline run against the same URL to fill it.
+- **Refreshes.** `POST /api/runs` starts a 15–30+ minute pipeline in a background thread. Vercel Functions
+  stop shortly after the response and are capped at a few minutes, so the UI's "Refresh data" button cannot
+  complete a run on Vercel. Run `python -m aptfinder run` from a machine or scheduler that has the same
+  `APTFINDER_DATABASE_URL`.
+- **Secrets.** `APTFINDER_GOOGLE_MAPS_API_KEY` is used only by the pipeline, not by the API, so it is not
+  needed in the Vercel project.
 
 ## Development
 

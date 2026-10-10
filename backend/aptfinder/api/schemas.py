@@ -298,7 +298,7 @@ class RatingSummaryView(BaseModel):
 
 
 class RatingFilterView(BaseModel):
-    status: Literal["ok", "no_reviews", "insufficient", "conflict", "excluded_low_rating"]
+    status: Literal["ok", "no_reviews", "insufficient", "conflict", "low_rating"]
     explanation: str
 
 

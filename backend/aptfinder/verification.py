@@ -188,6 +188,5 @@ def evaluate_property_status(session: Session, prop: Property, settings: Setting
     decision = evaluate_rating_filter(
         [RatingInput(r.source_id, r.average, r.count, r.scale, r.match_confidence) for r in ratings]
     )
-    if decision.exclude:
-        return PropertyStatus("excluded", [{"filter": "review_rating", "explanation": decision.explanation}], price, decision)
+    # A low rating is flagged for the UI's star filter, never used to exclude.
     return PropertyStatus("included", [], price, decision)

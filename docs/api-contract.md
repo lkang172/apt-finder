@@ -1,6 +1,7 @@
 # API Contract (backend ⇄ frontend)
 
-FastAPI serves JSON on `http://localhost:8000`. The Next.js app proxies `/api/*` to it.
+FastAPI serves JSON on `http://localhost:8000`. The Next.js app proxies `/api/*` to it. On Vercel the two run as
+services in one project and `vercel.json` routes public `/api/*` to the backend; the paths below are unchanged.
 All timestamps are ISO-8601 UTC strings. Money is USD per month unless noted. `null` always means
 "unknown / not available" — never zero, never "good".
 
@@ -228,7 +229,7 @@ interface PropertyDetail extends PropertySummary {
   overall_detail: OverallView;
   review_intelligence: ReviewIntelligence;
   rating_summaries: { source_id: string; source_name: string; average: number | null; count: number; source_url: string | null; observed_at: string }[];
-  rating_filter: { status: ReviewStatus | "excluded_low_rating"; explanation: string };
+  rating_filter: { status: ReviewStatus | "low_rating"; explanation: string };
   facts: EvidenceItem[];
   audit: { category: Category | null; check_name: string; severity: "error" | "warning" | "info"; action: string; detail: string }[];
   limitations: string[];

@@ -133,12 +133,13 @@ def test_unit_missing_from_latest_fetch_is_not_current(session):
     assert status.status == "excluded"
 
 
-def test_low_rating_with_enough_reviews_excludes(session, central_park):
+def test_low_rating_is_flagged_but_not_excluded(session, central_park):
     listing = al_listing("al_cp", "central-park-apartments", "cp2")
     listing.rating = CollectedRating(2.4, 87, 5.0, "https://example-source")
     upsert_listing(session, listing, run_id=None, now=FETCHED)
     status = evaluate_property_status(session, central_park, SETTINGS, FETCHED + timedelta(hours=1))
-    assert status.status == "excluded" and status.reasons[0]["filter"] == "review_rating"
+    assert status.status == "included" and status.reasons == []
+    assert status.rating.low_rating and status.rating.status == "low_rating"
 
 
 def test_no_reviews_does_not_exclude(session, central_park):

@@ -71,22 +71,22 @@ def test_geo_without_coordinates_falls_back_to_city():
 @pytest.mark.parametrize(
     ("ratings", "exclude", "status"),
     [
-        ([RatingInput("google_places", 2.4, 87)], True, "excluded_low_rating"),
-        ([RatingInput("google_places", 2.9, 5)], True, "excluded_low_rating"),
+        ([RatingInput("google_places", 2.4, 87)], True, "low_rating"),
+        ([RatingInput("google_places", 2.9, 5)], True, "low_rating"),
         ([RatingInput("google_places", 2.7, 1)], False, "insufficient"),
         ([], False, "no_reviews"),
         ([RatingInput("apartment_list", None, 0)], False, "no_reviews"),
         ([RatingInput("apartment_list", 3.0, 10)], False, "ok"),
         ([RatingInput("google_places", 2.7, 120), RatingInput("apartment_list", 4.1, 18)], False, "conflict"),
-        ([RatingInput("google_places", 2.8, 40), RatingInput("apartment_list", 3.1, 4)], True, "excluded_low_rating"),
+        ([RatingInput("google_places", 2.8, 40), RatingInput("apartment_list", 3.1, 4)], True, "low_rating"),
         ([RatingInput("google_places", 2.9, 4), RatingInput("apartment_list", 3.4, 40)], False, "ok"),
         ([RatingInput("google_places", 2.0, 50, match_confidence="weak")], False, "insufficient"),
-        ([RatingInput("x", 5.0, 10, scale=10.0)], True, "excluded_low_rating"),
+        ([RatingInput("x", 5.0, 10, scale=10.0)], True, "low_rating"),
     ],
 )
 def test_rating_filter(ratings, exclude, status):
     decision = evaluate_rating_filter(ratings)
-    assert decision.exclude is exclude
+    assert decision.low_rating is exclude
     assert decision.status == status
 
 
