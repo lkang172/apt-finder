@@ -22,7 +22,6 @@ export type ViewMode = "grid" | "map";
 
 const MAX_COMMUTE_OPTIONS = [10, 15, 20, 25, 30, 40];
 const MIN_SCORE_OPTIONS = [5, 6, 7, 8, 9];
-const MIN_RATING_OPTIONS = [3, 3.5, 4, 4.5];
 const CONFIDENCE_OPTIONS: Confidence[] = ["low", "medium", "high"];
 const UNIT_TYPES: UnitType[] = ["studio", "1br"];
 

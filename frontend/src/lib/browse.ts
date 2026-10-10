@@ -30,7 +30,6 @@ export interface BrowseFilters {
   minOverall: number | null;
   minCategoryScore: Partial<Record<ScoreFilterCategory, number>>;
   minConfidence: Confidence | null;
-  minReviewRating: number | null;
   hideEligibilityRestricted: boolean;
 }
 
@@ -46,7 +45,6 @@ export const EMPTY_FILTERS: BrowseFilters = {
   minOverall: null,
   minCategoryScore: {},
   minConfidence: null,
-  minReviewRating: null,
   hideEligibilityRestricted: false,
 };
 
@@ -182,7 +180,6 @@ export function filterProperties(items: PropertySummary[], filters: BrowseFilter
       ) &&
       (filters.minConfidence === null ||
         CONFIDENCE_RANK[p.overall.confidence] >= CONFIDENCE_RANK[filters.minConfidence]) &&
-      meetsMinimum(primaryRating(p), filters.minReviewRating) &&
       (!filters.hideEligibilityRestricted || p.eligibility_notes.length === 0),
   );
 }
@@ -195,7 +192,7 @@ export function countActiveFilters(filters: BrowseFilters): number {
     (filters.city ? 1 : 0) +
     (filters.unitTypes.length > 0 ? 1 : 0) +
     (filters.hideEligibilityRestricted ? 1 : 0) +
-    [filters.maxMonthlyTotal, filters.maxCommuteMinutes, filters.minOverall, filters.minConfidence, filters.minReviewRating].filter(
+    [filters.maxMonthlyTotal, filters.maxCommuteMinutes, filters.minOverall, filters.minConfidence].filter(
       (value) => value !== null,
     ).length +
     Object.values(filters.minCategoryScore).filter((value) => value !== undefined).length
